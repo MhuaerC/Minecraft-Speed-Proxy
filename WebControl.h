@@ -3,37 +3,42 @@
 #include <chrono>
 #include "rbslib/Network.h"
 #include "proxy.h"
+#include "ProxyManager.h"
 #include "json/CJsonObject.h"
 #include <list>
+#include <map>
 #include <shared_mutex>
 #include "asio/import_asio.h"
 
 
 /*
-* ÍøÒ³¿ØÖÆ·þÎñÀà£¬Ìá¹©ÀûÓÃWebAPI¿ØÖÆ·þÎñÆ÷µÄ¹¦ÄÜ
+* ï¿½ï¿½Ò³ï¿½ï¿½ï¿½Æ·ï¿½ï¿½ï¿½ï¿½à£¬ï¿½á¹©ï¿½ï¿½ï¿½ï¿½WebAPIï¿½ï¿½ï¿½Æ·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¹ï¿½ï¿½ï¿½
 */
 class WebControlServer
 {
 protected:
 	RbsLib::Network::HTTP::HTTPServer server;
 	std::string user_token;
-	//token¹ýÆÚÊ±¼ä
+	//tokenï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½
 	std::chrono::system_clock::time_point token_expiry_time;
 	std::shared_ptr<std::string> user_password;
 	bool is_request_stop = false;
-	std::list<std::pair<std::time_t, std::string>> logs;
-	int max_log_size = 100; //×î´óÈÕÖ¾ÌõÊý
-	std::shared_mutex log_mutex; //ÈÕÖ¾»¥³âËø
+	std::map<std::string, std::list<std::pair<std::time_t, std::string>>> logs;
+	int max_log_size = 100; //ï¿½ï¿½ï¿½ï¿½ï¿½Ö¾ï¿½ï¿½ï¿½ï¿½
+	std::shared_mutex log_mutex; //ï¿½ï¿½Ö¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	asio::io_context io_context;
-	std::map<std::time_t, uint32_t> time_online_users;
+	std::map<std::string, std::map<std::time_t, uint32_t>> time_online_users;
 	std::shared_mutex time_online_users_mutex;
+	std::shared_ptr<ProxyManager> proxy_manager;
 
-	asio::awaitable<void> TimeTaskUsers(std::shared_ptr<Proxy>& proxy_client);
+	asio::awaitable<void> TimeTaskUsers(std::shared_ptr<ProxyManager> proxy_manager);
 
+	static void SendTextResponse(const RbsLib::Network::TCP::TCPConnection& connection, const std::string& body, const std::string& content_type, int http_status_code = 200);
 	static void SendErrorResponse(const RbsLib::Network::TCP::TCPConnection& connection, int status_code, const std::string& message = "");
 	static void SendErrorResponse(const RbsLib::Network::TCP::TCPConnection& connection, const neb::CJsonObject& json, int http_status_code = 200);
 	static void SendSuccessResponse(const RbsLib::Network::TCP::TCPConnection& connection, const neb::CJsonObject& json);
 	static bool CheckToken(const std::string& cookie,const std::string& token,const std::chrono::system_clock::time_point& token_expiry_time);
+	static void GetStatus(neb::CJsonObject& response, const ProxyServiceView& view, const std::shared_ptr<Proxy>& proxy_client);
 	static void GetOnlineUsers(neb::CJsonObject& response, const std::shared_ptr<Proxy>& proxy_client);
 	static void GetWhiteList(neb::CJsonObject& response, const std::shared_ptr<Proxy>& proxy_client);
 	static void GetBlackList(neb::CJsonObject& response, const std::shared_ptr<Proxy>& proxy_client);
@@ -46,22 +51,27 @@ protected:
 	static void GetUserProxyList(neb::CJsonObject& response, const std::shared_ptr<Proxy>& proxy_client);
 	static bool SetUserProxy(neb::CJsonObject& response, const neb::CJsonObject& request, const std::shared_ptr<Proxy>& proxy_client);
 	static bool RemoveUserProxy(neb::CJsonObject& response, const neb::CJsonObject& request, const std::shared_ptr<Proxy>& proxy_client);
-	//ÉèÖÃ×î´óÍæ¼ÒÊý£¬-1±íÊ¾²»ÏÞÖÆ
-	static bool SetMaxUsers(neb::CJsonObject& response, const neb::CJsonObject& request, const std::shared_ptr<Proxy>& proxy_client);
+	//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½-1ï¿½ï¿½Ê¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+	static bool SetMaxUsers(neb::CJsonObject& response, const neb::CJsonObject& request, const std::shared_ptr<ProxyManager>& proxy_manager, const std::string& proxy_id);
 	static bool KickPlayer(neb::CJsonObject& response, const neb::CJsonObject& request, const std::shared_ptr<Proxy>& proxy_client);
 	static void GetStartTime(neb::CJsonObject& response, const std::shared_ptr<Proxy>& proxy_client);
-	bool GetUserNumberList(neb::CJsonObject& response,neb::CJsonObject& request, const std::shared_ptr<Proxy>& proxy_client);
-	void GetLogs(neb::CJsonObject& response, const std::shared_ptr<Proxy>& proxy_client);
+	bool GetUserNumberList(neb::CJsonObject& response, neb::CJsonObject& request, const std::string& proxy_id);
+	void GetLogs(neb::CJsonObject& response, const std::string& proxy_id);
 	static void GetMotd(neb::CJsonObject& response, const std::shared_ptr<Proxy>& proxy_client);
 	static bool SetMotd(neb::CJsonObject& response, const neb::CJsonObject& request, const std::shared_ptr<Proxy>& proxy_client);
+	static bool ReloadMotd(neb::CJsonObject& response, const std::shared_ptr<ProxyManager>& proxy_manager, const std::string& proxy_id);
+	static void GetProxyServers(neb::CJsonObject& response, const std::shared_ptr<ProxyManager>& proxy_manager);
+	static bool CreateProxyServer(neb::CJsonObject& response, const neb::CJsonObject& request, const std::shared_ptr<ProxyManager>& proxy_manager);
+	bool RemoveProxyServer(neb::CJsonObject& response, const neb::CJsonObject& request, const std::shared_ptr<ProxyManager>& proxy_manager);
 public:
 	WebControlServer(const std::string& address, std::uint16_t port);
 	~WebControlServer() noexcept;
 
 	void SetUserPassword(const std::string& password);
-	//ÔÚ¶ÀÁ¢Ïß³ÌÉÏÆô¶¯·þÎñÆ÷
-	void Start(std::shared_ptr<Proxy>& proxy_client);
-	//Í£Ö¹·þÎñ²¢µÈ´ý·þÎñ½áÊø
+	void AppendProxyLog(const std::string& proxy_id, const std::string& message);
+	//ï¿½Ú¶ï¿½ï¿½ï¿½ï¿½ß³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+	void Start(std::shared_ptr<ProxyManager>& proxy_manager);
+	//Í£Ö¹ï¿½ï¿½ï¿½ñ²¢µÈ´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	void Stop(void);
 
 };

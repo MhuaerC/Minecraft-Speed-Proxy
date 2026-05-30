@@ -6,6 +6,7 @@
 #include "rbslib/Network.h"
 #include "rbslib/TaskPool.h"
 #include <atomic>
+#include <ctime>
 #include <exception>
 #include <list>
 #include <map>
@@ -206,6 +207,7 @@ public:
   * @param remote_server_port 远程服务器端口
   */
 	Proxy(const std::string& local_address, std::uint16_t local_port, const std::string& remote_server_addr, std::uint16_t remote_server_port);
+	Proxy(const std::string& local_address, std::uint16_t local_port, const std::string& remote_server_addr, std::uint16_t remote_server_port, std::size_t io_thread_count);
 
 	Proxy(const Proxy&) = delete;
 	Proxy& operator=(const Proxy&) = delete;
@@ -350,6 +352,7 @@ protected:
 	std::string remote_server_addr; ///< 远程服务器地址
 	std::uint16_t local_port; ///< 本地监听端口
 	std::uint16_t remote_server_port; ///< 远程服务器端口
+	std::size_t io_thread_count = 1; ///< IO线程数
 	std::atomic_uint32_t max_player = -1; ///< 最大在线人数
 	std::map<std::string, std::shared_ptr<User>> users; ///< 在线用户映射
 	asio::io_context io_context; ///< IO上下文

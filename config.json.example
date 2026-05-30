@@ -1,0 +1,21 @@
+{
+	"LocalAddress":	"0.0.0.0",
+	"LocalPort":	25565,
+	"Address":	"mc.hypixel.net",
+	"RemotePort":	25565,
+	"MaxPlayer":	-1,
+	"MotdPath":	"",
+	"DefaultEnableWhitelist":	true,
+	"WhiteBlcakListPath":	"./data/WhiteBlackList.json",
+	"ProxyListPath":	"./data/proxies.json",
+	"AllowInput":	false,
+	"ShowOnlinePlayerNumber":	true,
+	"LogDir":	"./data/logs",
+	"ShowLogLevel":	0,
+	"SaveLogLevel":	0,
+	"Version":	"1.1",
+	"WebPanelEnable":	true,
+	"WebPanelAddress":	"0.0.0.0",
+	"WebPanelPort":	20220,
+	"WebPanelPassword":	"change-me"
+}

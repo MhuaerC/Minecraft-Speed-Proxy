@@ -1,13 +1,26 @@
-FROM debian:stable AS Builder
+FROM debian:stable AS builder
 
 WORKDIR /src
-RUN apt update -y
-RUN apt install build-essential gcc g++ make git -y
-RUN git clone https://github.com/AllesUgo/Minecraft-Speed-Proxy
-RUN cd Minecraft-Speed-Proxy && make USE_SYSTEM_LIBM=1 && make install
 
-FROM debian:stable
-EXPOSE 25565
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential cmake git \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY --from=Builder /usr/bin/minecraftspeedproxy /usr/bin
-ENTRYPOINT [ "/usr/bin/minecraftspeedproxy" ]
+COPY . .
+
+RUN cmake -S /src -B /src/build -DCMAKE_BUILD_TYPE=Release \
+    && cmake --build /src/build --config Release -j"$(nproc)"
+
+FROM debian:stable-slim
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+EXPOSE 25565 20220
+
+COPY --from=builder /src/build/minecraftspeedproxy /usr/local/bin/minecraftspeedproxy
+
+ENTRYPOINT ["/usr/local/bin/minecraftspeedproxy"]

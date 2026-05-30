@@ -90,62 +90,110 @@ chmod +x minecraftspeedproxy
 ```
 >配置文件路径需要包含文件名，如`./config.json`。
 
-默认配置文件内容如下：
+仓库里的 `config.json.example` 是部署示例。实际部署时先复制一份 `config.json`，再修改自己的面板密码和默认服务器：
+```bash
+cp config.json.example config.json
+```
+
+示例配置内容如下：
 ```json
 {
-	"Version": "1.1",
-	"LocalAddress": "::",
+	"LocalAddress": "0.0.0.0",
 	"LocalPort": 25565,
 	"Address": "mc.hypixel.net",
 	"RemotePort": 25565,
 	"MaxPlayer": -1,
 	"MotdPath": "",
 	"DefaultEnableWhitelist": true,
-	"WhiteBlcakListPath": "./WhiteBlackList.json",
-	"AllowInput": true,
+	"WhiteBlcakListPath": "./data/WhiteBlackList.json",
+	"ProxyListPath": "./data/proxies.json",
+	"AllowInput": false,
 	"ShowOnlinePlayerNumber": true,
-	"LogDir": "./logs",
+	"LogDir": "./data/logs",
 	"ShowLogLevel": 0,
 	"SaveLogLevel": 0,
-    "WebAPIEnable": 1,
-	"WebAPIAddress": "127.0.0.1",
-	"WebAPIPort": 8080,
-	"WebAPIPassword": "admin"
+	"Version": "1.1",
+    "WebPanelEnable": true,
+	"WebPanelAddress": "0.0.0.0",
+	"WebPanelPort": 20220,
+	"WebPanelPassword": "change-me"
 }
 ```
 
 | 键名 | 类型 | 说明 |
 |---|---|---|
 | Version | 字符串 | 配置文件版本号 |
-| LocalIPv6 | 布尔 | 本机地址是否使用IPv6 |
 | LocalAddress | 字符串 | 本机地址（如`0.0.0.0`或`::`） |
 | LocalPort | 整数 | 本机端口 |
-| RemoteIPv6 | 布尔 | 远程服务器地址是否使用IPv6 |
 | Address | 字符串 | 远程服务器地址（域名或IP） |
 | RemotePort | 整数 | 远程服务器端口 |
 | MaxPlayer | 整数 | 最大玩家数，-1不限制 |
 | MotdPath | 字符串 | motd文件路径，空则默认 |
 | DefaultEnableWhitelist | 布尔 | 是否默认启用白名单 |
 | WhiteBlcakListPath | 字符串 | 白/黑名单文件路径 |
+| ProxyListPath | 字符串 | 多个加速服务器配置保存路径 |
 | AllowInput | 布尔 | 是否允许输入命令 |
 | ShowOnlinePlayerNumber | 布尔 | 是否显示在线玩家数（暂未实现） |
 | LogDir | 字符串 | 日志目录 |
 | ShowLogLevel | 整数 | 显示日志等级 |
 | SaveLogLevel | 整数 | 保存日志等级 |
-| WebAPIEnable | 布尔 | 是否启用Web API |
-| WebAPIAddress | 字符串 | Web API监听地址 |
-| WebAPIPort | 整数 | Web API监听端口 |
-| WebAPIPassword | 字符串 | Web API访问密码 |
+| WebPanelEnable | 布尔 | 是否启用网页管理面板 |
+| WebPanelAddress | 字符串 | 网页管理面板监听地址 |
+| WebPanelPort | 整数 | 网页管理面板监听端口 |
+| WebPanelPassword | 字符串 | 网页管理面板登录密码 |
 
 ---
 
-## WebAPI
+## 网页管理面板
 
-WebAPI允许通过HTTP请求控制服务器，包含控制台全部功能及扩展。
-默认启用，可在配置文件中设置`WebAPIEnable`为`0`关闭。
+网页管理面板允许通过浏览器控制服务器，包含控制台全部功能及扩展。
+默认启用，可在配置文件中设置`WebPanelEnable`为`false`关闭。
 接口文档详见 [WebAPI.md](WebAPI.md)。
+内置网页管理面板可直接访问 `http://<WebPanelAddress>:<WebPanelPort>/`。
+网页管理面板支持创建多个加速服务器，每个加速服务器会启动一个独立监听端口，服务列表会保存到 `ProxyListPath` 指定的 JSON 文件。
 > [!WARNING]
-> 你的密码将被不加密传输，请慎重考虑启用WebAPI及网络环境安全性。可以使用反向代理用HTTPS提高安全性。
+> 你的密码将被不加密传输，请慎重考虑面板访问范围及网络环境安全性。可以使用反向代理用HTTPS提高安全性。
+---
+
+## GitHub 镜像
+
+仓库里带了一个手动触发的 GitHub Actions 工作流，用来构建并推送 Docker 镜像到 GHCR，默认镜像地址是 `ghcr.io/mhuaerc/minecraft-speed-proxy`。
+镜像会同时打上 `latest` 和 `YYYYMMDDHHMM` 两个标签，拉取示例：
+```bash
+docker pull ghcr.io/mhuaerc/minecraft-speed-proxy:latest
+docker pull ghcr.io/mhuaerc/minecraft-speed-proxy:202605311530
+```
+如果仓库包是私有的，先执行 `docker login ghcr.io`。
+
+### Docker Compose
+仓库根目录已经放好了 `docker-compose.yml`，默认直接拉取镜像运行，不在本地编译。
+多加速服务器模式下，Compose 使用 `network_mode: host`，网页里新建的本地监听端口会直接监听到宿主机上，不需要每新增一个服务器就改一次端口映射。
+第一次启动前，先复制示例配置，再按需修改项目根目录的 `config.json` 里的面板密码；运行数据默认保存到项目目录下的 `data/`，如果不想让程序第一次启动时创建默认服务器，也可以把默认远程服务器地址一并改掉。
+
+```bash
+cp config.json.example config.json
+mkdir -p data
+```
+
+启动：
+```bash
+docker compose pull
+docker compose up -d
+```
+
+查看日志：
+```bash
+docker compose logs -f
+```
+
+停止：
+```bash
+docker compose down
+```
+
+启动后，默认加速服务器端口是 `25565`，网页管理面板默认访问 `http://127.0.0.1:20220/`。新增加速服务器时，本地端口不能重复。
+> `network_mode: host` 主要适合 Linux Docker 主机。如果使用不支持 host 网络的 Docker Desktop，需要改回 `ports` 并提前映射一个端口范围。
+
 ---
 
 ## MOTD自定义

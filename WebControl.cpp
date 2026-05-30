@@ -1,26 +1,122 @@
 #include "WebControl.h"
+#include "webpanel_assets.h"
 #include "logger.h"
 #include <regex>
 #include "json/CJsonObject.h"
 #include "rbslib/CharsetConvert.h"
 #include "WhiteBlackList.h"
+#include "config.h"
+#include <cmath>
+#include <map>
+#include <mutex>
 #include <ranges>
+#include <sstream>
 
-asio::awaitable<void> WebControlServer::TimeTaskUsers(std::shared_ptr<Proxy>& proxy_client)
+namespace
+{
+	auto PathOnly(const std::string& raw_path) -> std::string
+	{
+		std::string path = raw_path;
+		if (auto pos = path.find('?'); pos != std::string::npos)
+		{
+			path.resize(pos);
+		}
+		return path;
+	}
+
+	auto QueryValue(const std::string& raw_path, const std::string& key) -> std::string
+	{
+		auto query_pos = raw_path.find('?');
+		if (query_pos == std::string::npos)
+		{
+			return {};
+		}
+		std::string query = raw_path.substr(query_pos + 1);
+		std::stringstream stream(query);
+		std::string part;
+		while (std::getline(stream, part, '&'))
+		{
+			auto equal_pos = part.find('=');
+			if (equal_pos == std::string::npos)
+			{
+				continue;
+			}
+			if (part.substr(0, equal_pos) == key)
+			{
+				return part.substr(equal_pos + 1);
+			}
+		}
+		return {};
+	}
+
+	auto RequestProxyId(const std::string& raw_path, const neb::CJsonObject* request, const std::shared_ptr<ProxyManager>& proxy_manager) -> std::string
+	{
+		std::string proxy_id = QueryValue(raw_path, "proxy_id");
+		if (proxy_id.empty() && request)
+		{
+			request->Get("proxy_id", proxy_id);
+		}
+		if (proxy_id.empty() && proxy_manager)
+		{
+			proxy_id = proxy_manager->GetDefaultProxyId();
+		}
+		return proxy_id;
+	}
+
+	void AddProxyViewJson(neb::CJsonObject& object, const ProxyServiceView& view)
+	{
+		object.Add("id", view.id);
+		object.Add("name", view.name);
+		object.Add("local_address", view.local_address);
+		object.Add("local_port", static_cast<int>(view.local_port));
+		object.Add("remote_address", view.remote_address);
+		object.Add("remote_port", static_cast<int>(view.remote_port));
+		object.Add("max_player", view.max_player);
+		object.Add("motd_path", view.motd_path);
+		object.Add("running", view.running, view.running);
+		object.Add("is_default", view.is_default, view.is_default);
+		object.Add("start_time", static_cast<int64_t>(view.start_time));
+		object.Add("online_users", static_cast<int>(view.online_users));
+		object.Add("default_proxy", view.default_proxy);
+		object.Add("listen_endpoint", view.local_address + ":" + std::to_string(view.local_port));
+	}
+}
+
+asio::awaitable<void> WebControlServer::TimeTaskUsers(std::shared_ptr<ProxyManager> proxy_manager)
 {
 	try
 	{
 		asio::steady_timer timer(co_await asio::this_coro::executor);
 		while (true) 
 		{
-			std::shared_lock<std::shared_mutex> lock(time_online_users_mutex);
-			time_online_users[std::time(nullptr)] = proxy_client->GetUsersInfo().size();
+			auto views = proxy_manager ? proxy_manager->ListViews() : std::vector<ProxyServiceView>{};
+			auto now = std::time(nullptr);
+			std::unique_lock<std::shared_mutex> lock(time_online_users_mutex);
+			for (const auto& view : views)
+			{
+				time_online_users[view.id][now] = view.online_users;
+			}
 			lock.unlock();
 			timer.expires_after(std::chrono::minutes(1));
 			co_await timer.async_wait(asio::use_awaitable);
 		}
 	}
 	catch (...){}
+}
+
+void WebControlServer::SendTextResponse(const RbsLib::Network::TCP::TCPConnection& connection, const std::string& body, const std::string& content_type, int http_status_code)
+{
+	RbsLib::Network::HTTP::ResponseHeader response;
+	response.status = http_status_code;
+	response.headers.AddHeader("Content-Type", content_type);
+	response.headers.AddHeader("Content-Length", std::to_string(body.size()));
+	response.headers.AddHeader("Access-Control-Allow-Origin", "*");
+	response.headers.AddHeader("Cache-Control", "no-store, max-age=0");
+	connection.Send(response.ToBuffer());
+	if (!body.empty())
+	{
+		connection.Send(body.c_str(), body.size());
+	}
 }
 
 void WebControlServer::SendErrorResponse(const RbsLib::Network::TCP::TCPConnection& connection, int status_code, const std::string& message)
@@ -63,6 +159,29 @@ bool WebControlServer::CheckToken(const std::string& cookie, const std::string& 
 
 	std::string extracted_token = cookie;
 	return (extracted_token == token) && (std::chrono::system_clock::now() < token_expiry_time);
+}
+
+void WebControlServer::GetStatus(neb::CJsonObject& response, const ProxyServiceView& view, const std::shared_ptr<Proxy>& proxy_client)
+{
+	auto start_time = proxy_client->GetStartTime();
+	auto now_time = std::time(nullptr);
+	auto default_proxy = proxy_client->GetDefaultProxy();
+	bool whitelist_status = WhiteBlackList::IsWhiteListOn();
+
+	response.Add("proxy_id", view.id);
+	response.Add("proxy_name", view.name);
+	response.Add("local_address", view.local_address);
+	response.Add("local_port", static_cast<int>(view.local_port));
+	response.Add("remote_address", view.remote_address);
+	response.Add("remote_port", static_cast<int>(view.remote_port));
+	response.Add("listen_endpoint", view.local_address + ":" + std::to_string(view.local_port));
+	response.Add("start_time", start_time);
+	response.Add("now_time", now_time);
+	response.Add("uptime_seconds", start_time > 0 && now_time > start_time ? static_cast<int>(now_time - start_time) : 0);
+	response.Add("online_users", static_cast<int>(proxy_client->GetUsersInfo().size()));
+	response.Add("max_player", proxy_client->GetMaxPlayer());
+	response.Add("whitelist_status", whitelist_status, whitelist_status);
+	response.Add("default_proxy", default_proxy.first + ":" + std::to_string(default_proxy.second));
 }
 
 void WebControlServer::GetOnlineUsers(neb::CJsonObject& response, const std::shared_ptr<Proxy>& proxy_client)
@@ -130,7 +249,7 @@ bool WebControlServer::AddBlacklistUser(neb::CJsonObject& response, const neb::C
 		return false;
 	}
 	WhiteBlackList::AddBlackList(username);
-	Logger::LogInfo("WebAPI: Added user %s to blacklist", username.c_str());
+	Logger::LogInfo("WebPanel: Added user %s to blacklist", username.c_str());
 	response.Add("status", 200);
 	response.Add("message", "User added to black list successfully");
 	return true;
@@ -152,7 +271,7 @@ bool WebControlServer::RemoveBlacklistUser(neb::CJsonObject& response, const neb
 		return false;
 	}
 	WhiteBlackList::RemoveBlackList(username);
-	Logger::LogInfo("WebAPI: Removed user %s from blacklist", username.c_str());
+	Logger::LogInfo("WebPanel: Removed user %s from blacklist", username.c_str());
 	response.Add("status", 200);
 	response.Add("message", "User removed from black list successfully");
 	return true;
@@ -174,7 +293,7 @@ bool WebControlServer::AddWhitelistUser(neb::CJsonObject& response, const neb::C
 		return false;
 	}
 	WhiteBlackList::AddWhiteList(username);
-	Logger::LogInfo("WebAPI: Added user %s to whitelist", username.c_str());
+	Logger::LogInfo("WebPanel: Added user %s to whitelist", username.c_str());
 	response.Add("status", 200);
 	response.Add("message", "User added to white list successfully");
 	return true;
@@ -196,7 +315,7 @@ bool WebControlServer::RemoveWhitelistUser(neb::CJsonObject& response, const neb
 		return false;
 	}
 	WhiteBlackList::RemoveWhiteList(username);
-	Logger::LogInfo("WebAPI: Removed user %s from whitelist", username.c_str());
+	Logger::LogInfo("WebPanel: Removed user %s from whitelist", username.c_str());
 	response.Add("status", 200);
 	response.Add("message", "User removed from white list successfully");
 	return true;
@@ -213,7 +332,7 @@ bool WebControlServer::EnableWhitelist(neb::CJsonObject& response, const std::sh
 	else
 	{
 		WhiteBlackList::WhiteListOn();
-		Logger::LogInfo("WebAPI: Enabled whitelist");
+		Logger::LogInfo("WebPanel: Enabled whitelist");
 		response.Add("status", 200);
 		response.Add("message", "Whitelist enabled successfully");
 		return true;
@@ -231,7 +350,7 @@ bool WebControlServer::DisableWhitelist(neb::CJsonObject& response, const std::s
 	else
 	{
 		WhiteBlackList::WhiteListOff();
-		Logger::LogInfo("WebAPI: Disabled whitelist");
+		Logger::LogInfo("WebPanel: Disabled whitelist");
 		response.Add("status", 200);
 		response.Add("message", "Whitelist disabled successfully");
 		return true;
@@ -272,7 +391,7 @@ bool WebControlServer::SetUserProxy(neb::CJsonObject& response, const neb::CJson
 		return false;
 	}
 	proxy_client->SetUserProxy(username, proxy_address, static_cast<std::uint16_t>(proxy_port));
-	Logger::LogInfo("WebAPI: Set proxy server for user %s to %s:%d", username.c_str(), proxy_address.c_str(), proxy_port);
+	Logger::LogInfo("WebPanel: Set proxy server for user %s to %s:%d", username.c_str(), proxy_address.c_str(), proxy_port);
 	response.Add("status", 200);
 	response.Add("message", "User proxy set successfully");
 	return true;
@@ -290,7 +409,7 @@ bool WebControlServer::RemoveUserProxy(neb::CJsonObject& response, const neb::CJ
 	try
 	{
 		proxy_client->DeleteUserProxy(username);
-		Logger::LogInfo("WebAPI: Deleted proxy server setting for user %s", username.c_str());
+		Logger::LogInfo("WebPanel: Deleted proxy server setting for user %s", username.c_str());
 	}
 	catch (ProxyException const& ex)
 	{
@@ -303,8 +422,14 @@ bool WebControlServer::RemoveUserProxy(neb::CJsonObject& response, const neb::CJ
 	return true;
 }
 
-bool WebControlServer::SetMaxUsers(neb::CJsonObject& response, const neb::CJsonObject& request, const std::shared_ptr<Proxy>& proxy_client)
+bool WebControlServer::SetMaxUsers(neb::CJsonObject& response, const neb::CJsonObject& request, const std::shared_ptr<ProxyManager>& proxy_manager, const std::string& proxy_id)
 {
+	if (!proxy_manager)
+	{
+		response.Add("status", 500);
+		response.Add("message", "Proxy manager is not available");
+		return false;
+	}
 	int max_users;
 	if (!request.Get("max_users", max_users) || max_users < -1)
 	{
@@ -312,8 +437,17 @@ bool WebControlServer::SetMaxUsers(neb::CJsonObject& response, const neb::CJsonO
 		response.Add("message", "Invalid 'max_users' value");
 		return false;
 	}
-	proxy_client->SetMaxPlayer(max_users);
-	Logger::LogInfo("WebAPI: Set maximum users to %d", max_users);
+	try
+	{
+		proxy_manager->SetMaxPlayer(proxy_id, max_users);
+	}
+	catch (const std::exception& ex)
+	{
+		response.Add("status", 404);
+		response.Add("message", ex.what());
+		return false;
+	}
+	Logger::LogInfo("WebPanel: Set maximum users to %d", max_users);
 	response.Add("status", 200);
 	response.Add("message", "Max users set successfully");
 	return true;
@@ -331,7 +465,7 @@ bool WebControlServer::KickPlayer(neb::CJsonObject& response, const neb::CJsonOb
 	try
 	{
 		proxy_client->KickByUsername(username);
-		Logger::LogInfo("WebAPI: Kicked user %s", username.c_str());
+		Logger::LogInfo("WebPanel: Kicked user %s", username.c_str());
 		response.Add("status", 200);
 		response.Add("message", "Player kicked successfully");
 		return true;
@@ -353,10 +487,10 @@ void WebControlServer::GetStartTime(neb::CJsonObject& response, const std::share
 	response.Add("message", "Start time retrieved successfully");
 }
 
-// ÐÞ¸ÄµÄº¯Êý GetUserNumberList·µ»ØµÄÊý¾Ý
-bool WebControlServer::GetUserNumberList(neb::CJsonObject& response, neb::CJsonObject& request, const std::shared_ptr<Proxy>& proxy_client)
+// ï¿½Þ¸ÄµÄºï¿½ï¿½ï¿½ GetUserNumberListï¿½ï¿½ï¿½Øµï¿½ï¿½ï¿½ï¿½ï¿½
+bool WebControlServer::GetUserNumberList(neb::CJsonObject& response, neb::CJsonObject& request, const std::string& proxy_id)
 {
-	// »ñÈ¡Ê±¼ä·¶Î§
+	// ï¿½ï¿½È¡Ê±ï¿½ä·¶Î§
 	std::time_t start_time, end_time;
 	if (!request.Get("start_time", start_time) || !request.Get("end_time", end_time) || start_time >= end_time)
 	{
@@ -364,7 +498,7 @@ bool WebControlServer::GetUserNumberList(neb::CJsonObject& response, neb::CJsonO
 		response.Add("message", "Invalid 'start_time' or 'end_time' value");
 		return false;
 	}
-	// »ñÈ¡Á£¶È minute£¨·ÖÖÓ£©¡¢hour£¨Ð¡Ê±£©¡¢day£¨Ìì£©¡¢week£¨ÖÜ£©¡¢month£¨ÔÂ£©
+	// ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½ minuteï¿½ï¿½ï¿½ï¿½ï¿½Ó£ï¿½ï¿½ï¿½hourï¿½ï¿½Ð¡Ê±ï¿½ï¿½ï¿½ï¿½dayï¿½ï¿½ï¿½ì£©ï¿½ï¿½weekï¿½ï¿½ï¿½Ü£ï¿½ï¿½ï¿½monthï¿½ï¿½ï¿½Â£ï¿½
 	std::string granularity;
 	if (!request.Get("granularity", granularity) || (granularity != "minute" && granularity != "hour" && granularity != "day" && granularity != "week" && granularity != "month"))
 	{
@@ -372,16 +506,23 @@ bool WebControlServer::GetUserNumberList(neb::CJsonObject& response, neb::CJsonO
 		response.Add("message", "Invalid 'granularity' value");
 		return false;
 	}
-	// Ê¹ÓÃranges¿â»ñÈ¡Ê±¼ä·¶Î§ÄÚµÄÔÚÏßÓÃ»§ÊýÁ¿
-	std::shared_lock<std::shared_mutex> lock(this->time_online_users_mutex);
-	auto filtered_view = std::ranges::views::filter(this->time_online_users, [start_time, end_time](const auto& item) {
-		return item.first >= start_time && item.first <= end_time;
-		});
-
-	// ¸ù¾ÝÁ£¶È·Ö×éÍ³¼Æ
-	std::map<std::time_t, uint32_t> grouped,count;
-	for (const auto& item : filtered_view)
+	std::map<std::time_t, uint32_t> history;
 	{
+		std::shared_lock<std::shared_mutex> lock(this->time_online_users_mutex);
+		if (auto item = this->time_online_users.find(proxy_id); item != this->time_online_users.end())
+		{
+			history = item->second;
+		}
+	}
+
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È·ï¿½ï¿½ï¿½Í³ï¿½ï¿½
+	std::map<std::time_t, uint32_t> grouped,count;
+	for (const auto& item : history)
+	{
+		if (item.first < start_time || item.first > end_time)
+		{
+			continue;
+		}
 		std::time_t key = 0;
 		if (granularity == "minute")
 		{
@@ -402,25 +543,25 @@ bool WebControlServer::GetUserNumberList(neb::CJsonObject& response, neb::CJsonO
 		else if (granularity == "month")
 		{
 			std::tm tm = *std::localtime(&item.first);
-			tm.tm_mday = 1; // ÉèÖÃÎªµ±ÔÂµÚÒ»Ìì
+			tm.tm_mday = 1; // ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½ï¿½Âµï¿½Ò»ï¿½ï¿½
 			tm.tm_hour = 0;
 			tm.tm_min = 0;
 			tm.tm_sec = 0;
 			key = std::mktime(&tm);
 		}
 		grouped[key] += item.second;
-		count[key]++; // Í³¼ÆÃ¿¸öÊ±¼ä¶ÎµÄÊý¾Ý¸öÊý
+		count[key]++; // Í³ï¿½ï¿½Ã¿ï¿½ï¿½Ê±ï¿½ï¿½Îµï¿½ï¿½ï¿½ï¿½Ý¸ï¿½ï¿½ï¿½
 	}
-	// ¼ÆËãÃ¿¸öÊ±¼ä¶ÎÆ½¾ùÔÚÏßÓÃ»§Êý
+	// ï¿½ï¿½ï¿½ï¿½Ã¿ï¿½ï¿½Ê±ï¿½ï¿½ï¿½Æ½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã»ï¿½ï¿½ï¿½
 	for (auto& item : grouped)
 	{
 		if (count[item.first] > 0)
 		{
-			item.second = static_cast<int>(std::round(static_cast<double>(item.second) / count[item.first])); // ¼ÆËãÆ½¾ùÖµ
+			item.second = static_cast<int>(std::round(static_cast<double>(item.second) / count[item.first])); // ï¿½ï¿½ï¿½ï¿½Æ½ï¿½ï¿½Öµ
 		}
 		else
 		{
-			item.second = 0; // Èç¹ûÃ»ÓÐÊý¾ÝÔòÉèÖÃÎª0
+			item.second = 0; // ï¿½ï¿½ï¿½Ã»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îª0
 		}
 	}
 
@@ -432,24 +573,29 @@ bool WebControlServer::GetUserNumberList(neb::CJsonObject& response, neb::CJsonO
 		user_number.Add("online_users", item.second);
 		response["user_numbers"].Add(user_number);
 	}
-	lock.unlock();
 	response.Add("status", 200);
 	response.Add("message", "User number list retrieved successfully");
 	return true;
 }
 
-void WebControlServer::GetLogs(neb::CJsonObject& response, const std::shared_ptr<Proxy>& proxy_client)
+void WebControlServer::GetLogs(neb::CJsonObject& response, const std::string& proxy_id)
 {
 	response.AddEmptySubArray("logs");
 	std::shared_lock<std::shared_mutex> lock(this->log_mutex);
-	for (const auto& log : this->logs)
+	auto item = this->logs.find(proxy_id);
+	if (item == this->logs.end())
+	{
+		response.Add("status", 200);
+		response.Add("message", "Logs retrieved successfully");
+		return;
+	}
+	for (const auto& log : item->second)
 	{
 		neb::CJsonObject log_entry;
 		log_entry.Add("timestamp", log.first);
 		log_entry.Add("message", log.second);
 		response["logs"].Add(log_entry);
 	}
-	lock.unlock();
 	response.Add("status", 200);
 	response.Add("message", "Logs retrieved successfully");
 }
@@ -467,7 +613,7 @@ bool WebControlServer::SetMotd(neb::CJsonObject& response, const neb::CJsonObjec
 	if (request.Get("motd", motd))
 	{
 		proxy_client->SetMotd(motd.ToString());
-		Logger::LogInfo("WebAPI: Set new MOTD");
+		Logger::LogInfo("WebPanel: Set new MOTD");
 		response.Add("status", 200);
 		response.Add("message", "MOTD set successfully");
 		return true;
@@ -478,6 +624,140 @@ bool WebControlServer::SetMotd(neb::CJsonObject& response, const neb::CJsonObjec
 		response.Add("message", "Missing or invalid 'motd' field in request");
 		return false;
 	}
+}
+
+bool WebControlServer::ReloadMotd(neb::CJsonObject& response, const std::shared_ptr<ProxyManager>& proxy_manager, const std::string& proxy_id)
+{
+	if (!proxy_manager)
+	{
+		response.Add("status", 500);
+		response.Add("message", "Proxy manager is not available");
+		return false;
+	}
+	try
+	{
+		proxy_manager->ReloadMotd(proxy_id);
+		Logger::LogInfo("WebPanel: Reloaded MOTD from config file");
+		response.Add("status", 200);
+		response.Add("message", "MOTD reloaded successfully");
+		return true;
+	}
+	catch (const std::exception& ex)
+	{
+		response.Add("status", 400);
+		response.Add("message", ex.what());
+		return false;
+	}
+}
+
+void WebControlServer::GetProxyServers(neb::CJsonObject& response, const std::shared_ptr<ProxyManager>& proxy_manager)
+{
+	response.Add("default_proxy_id", proxy_manager ? proxy_manager->GetDefaultProxyId() : std::string{});
+	response.AddEmptySubArray("proxies");
+	if (!proxy_manager)
+	{
+		return;
+	}
+	for (const auto& view : proxy_manager->ListViews())
+	{
+		neb::CJsonObject item;
+		AddProxyViewJson(item, view);
+		response["proxies"].Add(item);
+	}
+}
+
+bool WebControlServer::CreateProxyServer(neb::CJsonObject& response, const neb::CJsonObject& request, const std::shared_ptr<ProxyManager>& proxy_manager)
+{
+	if (!proxy_manager)
+	{
+		response.Add("status", 500);
+		response.Add("message", "Proxy manager is not available");
+		return false;
+	}
+	ProxyServiceConfig service;
+	std::string text;
+	int number = 0;
+	if (request.Get("id", text)) service.id = text;
+	if (request.Get("name", text)) service.name = text;
+	if (request.Get("local_address", text)) service.local_address = text;
+	if (request.Get("remote_address", text)) service.remote_address = text;
+	if (request.Get("motd_path", text)) service.motd_path = text;
+	if (!request.Get("local_port", number) || number < 1 || number > 65535)
+	{
+		response.Add("status", 400);
+		response.Add("message", "Invalid 'local_port' value");
+		return false;
+	}
+	service.local_port = static_cast<std::uint16_t>(number);
+	if (!request.Get("remote_port", number) || number < 1 || number > 65535)
+	{
+		response.Add("status", 400);
+		response.Add("message", "Invalid 'remote_port' value");
+		return false;
+	}
+	service.remote_port = static_cast<std::uint16_t>(number);
+	if (request.Get("max_player", number))
+	{
+		if (number < -1)
+		{
+			response.Add("status", 400);
+			response.Add("message", "Invalid 'max_player' value");
+			return false;
+		}
+		service.max_player = number;
+	}
+	if (service.remote_address.empty())
+	{
+		response.Add("status", 400);
+		response.Add("message", "Missing 'remote_address' field");
+		return false;
+	}
+	try
+	{
+		auto proxy_id = proxy_manager->AddProxy(service);
+		response.Add("proxy_id", proxy_id);
+		AddProxyViewJson(response, proxy_manager->GetView(proxy_id));
+		return true;
+	}
+	catch (const std::exception& ex)
+	{
+		response.Add("status", 400);
+		response.Add("message", ex.what());
+		return false;
+	}
+}
+
+bool WebControlServer::RemoveProxyServer(neb::CJsonObject& response, const neb::CJsonObject& request, const std::shared_ptr<ProxyManager>& proxy_manager)
+{
+	if (!proxy_manager)
+	{
+		response.Add("status", 500);
+		response.Add("message", "Proxy manager is not available");
+		return false;
+	}
+	std::string proxy_id;
+	if (!request.Get("proxy_id", proxy_id) || proxy_id.empty())
+	{
+		response.Add("status", 400);
+		response.Add("message", "Missing 'proxy_id' field");
+		return false;
+	}
+	if (!proxy_manager->RemoveProxy(proxy_id))
+	{
+		response.Add("status", 404);
+		response.Add("message", "Proxy not found");
+		return false;
+	}
+	{
+		std::unique_lock<std::shared_mutex> lock(this->log_mutex);
+		this->logs.erase(proxy_id);
+	}
+	{
+		std::unique_lock<std::shared_mutex> lock(this->time_online_users_mutex);
+		this->time_online_users.erase(proxy_id);
+	}
+	response.Add("proxy_id", proxy_id);
+	return true;
 }
 
 
@@ -499,55 +779,47 @@ void WebControlServer::SetUserPassword(const std::string& password)
 	this->user_password = std::make_shared<std::string>(password);
 }
 
-void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
+void WebControlServer::AppendProxyLog(const std::string& proxy_id, const std::string& message)
 {
-	//×¢²áÈÕÖ¾»Øµ÷
-	proxy_client->on_login += [this](Proxy::ConnectionControl& control) {
-		std::unique_lock<std::shared_mutex> lock(this->log_mutex);
-		this->logs.push_back({ std::time(nullptr), RbsLib::Encoding::CharsetConvert::ANSItoUTF8("Player " + control.Username() + " uuid:" + control.UUID() + " logged in from " + control.GetAddress()) });
-		if (this->max_log_size > this->max_log_size)
-		{
-			this->logs.pop_front(); //É¾³ý×î¾ÉµÄÈÕÖ¾
-		}
-		};
-	proxy_client->on_logout += [this](Proxy::ConnectionControl& control) {
-		double flow = control.UploadBytes();
-		std::string unit = "bytes";
-		if (flow > 10000) {
-			flow /= 1024;
-			unit = "KB";
-		}
-		if (flow > 10000) {
-			flow /= 1024;
-			unit = "MB";
-		}
-		if (flow > 10000) {
-			flow /= 1024;
-			unit = "GB";
-		}
-		double time = std::time(nullptr) - control.ConnectTime();
-		std::string time_unit = "seconds";
-		if (time > 100) {
-			time /= 60;
-			time_unit = "minutes";
-		}
-		if (time > 100) {
-			time /= 60;
-			time_unit = "hours";
-		}
-		std::unique_lock<std::shared_mutex> lock(this->log_mutex);
-		this->logs.push_back({ std::time(nullptr), RbsLib::Encoding::CharsetConvert::ANSItoUTF8("Player " + control.Username() + " uuid:" + control.UUID() + " logged out from " + control.GetAddress() + ", online duration " + std::to_string(time) + " " + time_unit + ", traffic used " + std::to_string(flow) + " " + unit) });
-		if (this->logs.size() > this->max_log_size)
-		{
-			this->logs.pop_front(); //É¾³ý×î¾ÉµÄÈÕÖ¾
-		}
-		};
-	this->server.SetGetHandle([proxy = proxy_client, this](const RbsLib::Network::TCP::TCPConnection& connection, RbsLib::Network::HTTP::RequestHeader& header) -> int {
+	std::unique_lock<std::shared_mutex> lock(this->log_mutex);
+	auto& list = this->logs[proxy_id];
+	list.push_back({ std::time(nullptr), RbsLib::Encoding::CharsetConvert::ANSItoUTF8(message) });
+	while (list.size() > static_cast<std::size_t>(this->max_log_size))
+	{
+		list.pop_front();
+	}
+}
+
+void WebControlServer::Start(std::shared_ptr<ProxyManager>& proxy_manager)
+{
+	this->proxy_manager = proxy_manager;
+	this->server.SetGetHandle([proxy_manager = proxy_manager, this](const RbsLib::Network::TCP::TCPConnection& connection, RbsLib::Network::HTTP::RequestHeader& header) -> int {
 		static const std::regex re_userproxy(R"(^/api/([a-zA-Z0-9_]{1,256})$)");
-		std::cmatch m;
-		if (std::regex_match(header.path.c_str(), m, re_userproxy) and m.size() == 2)
+		std::string path = PathOnly(header.path);
+		if (path == "/" || path == "/panel" || path == "/index.html")
 		{
-			//¼ì²étoken
+			WebControlServer::SendTextResponse(connection, std::string(kWebPanelHtml), "text/html; charset=utf-8");
+			return 0;
+		}
+		if (path == "/panel.css")
+		{
+			WebControlServer::SendTextResponse(connection, std::string(kWebPanelCss), "text/css; charset=utf-8");
+			return 0;
+		}
+		if (path == "/panel.js")
+		{
+			WebControlServer::SendTextResponse(connection, std::string(kWebPanelJs), "application/javascript; charset=utf-8");
+			return 0;
+		}
+		if (path == "/favicon.ico")
+		{
+			WebControlServer::SendTextResponse(connection, "", "image/x-icon", 204);
+			return 0;
+		}
+		std::cmatch m;
+		if (std::regex_match(path.c_str(), m, re_userproxy) and m.size() == 2)
+		{
+			//ï¿½ï¿½ï¿½token
 			std::string cookie = header.headers.GetHeader("Authorize");
 			if (!CheckToken(cookie, this->user_token, this->token_expiry_time))
 			{
@@ -555,14 +827,26 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 			}
 			else
 			{
-				//´¦ÀíÒµÎñÂß¼­²¢·µ»Ø½á¹û
+				//ï¿½ï¿½ï¿½ï¿½Òµï¿½ï¿½ï¿½ß¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ø½ï¿½ï¿½
 				
 				neb::CJsonObject response_body;
+				const std::string proxy_id = RequestProxyId(header.path, nullptr, proxy_manager);
+				auto proxy = proxy_manager ? proxy_manager->GetProxy(proxy_id) : nullptr;
+				auto require_proxy = [&]() -> bool {
+					if (proxy)
+					{
+						return true;
+					}
+					response_body.Add("status", 404);
+					response_body.Add("message", "Proxy not found");
+					this->SendErrorResponse(connection, response_body, 404);
+					return false;
+					};
 				if (m[1].str() == "logout")
 				{
 					this->user_token = "";
 					this->token_expiry_time = std::chrono::system_clock::time_point();
-					Logger::LogInfo("WebAPI: User logged out");
+					Logger::LogInfo("WebPanel: User logged out");
 					response_body.Add("status", 200);
 					response_body.Add("message", "Logout successful");
 					RbsLib::Network::HTTP::ResponseHeader response_header;
@@ -574,8 +858,28 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 					auto str = response_body.ToString();
 					connection.Send(str.c_str(), str.size());
 				}
+				else if (m[1].str() == "get_proxy_servers")
+				{
+					this->GetProxyServers(response_body, proxy_manager);
+					this->SendSuccessResponse(connection, response_body);
+				}
+				else if (m[1].str() == "get_status")
+				{
+					if (!require_proxy()) return 0;
+					try
+					{
+						this->GetStatus(response_body, proxy_manager->GetView(proxy_id), proxy);
+					}
+					catch (const std::exception&)
+					{
+						WebControlServer::SendErrorResponse(connection, 404, "Proxy not found");
+						return 0;
+					}
+					this->SendSuccessResponse(connection, response_body);
+				}
 				else if (m[1].str() == "get_online_users")
 				{
+					if (!require_proxy()) return 0;
 					this->GetOnlineUsers(response_body, proxy);
 					this->SendSuccessResponse(connection, response_body);
 				}
@@ -613,21 +917,24 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 				}
 				else if (m[1].str() == "get_user_proxies")
 				{
+					if (!require_proxy()) return 0;
 					this->GetUserProxyList(response_body, proxy);
 					this->SendSuccessResponse(connection, response_body);
 				}
 				else if (m[1].str() == "get_start_time")
 				{
+					if (!require_proxy()) return 0;
 					this->GetStartTime(response_body, proxy);
 					this->SendSuccessResponse(connection, response_body);
 				}
 				else if (m[1].str() == "get_logs")
 				{
-					this->GetLogs(response_body, proxy);
+					this->GetLogs(response_body, proxy_id);
 					this->SendSuccessResponse(connection, response_body);
 				}
 				else if (m[1].str() == "get_motd")
 				{
+					if (!require_proxy()) return 0;
 					this->GetMotd(response_body, proxy);
 					this->SendSuccessResponse(connection, response_body);
 				}
@@ -643,12 +950,13 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 		}
 		return 0;
 		});
-	this->server.SetPostHandle([proxy = proxy_client, this](const RbsLib::Network::TCP::TCPConnection& connection, RbsLib::Network::HTTP::RequestHeader& header, RbsLib::Buffer& buffer) -> int {
+	this->server.SetPostHandle([proxy_manager = proxy_manager, this](const RbsLib::Network::TCP::TCPConnection& connection, RbsLib::Network::HTTP::RequestHeader& header, RbsLib::Buffer& buffer) -> int {
 		static const std::regex re_userproxy(R"(^/api/([a-zA-Z0-9_]{1,256})$)");
+		std::string path = PathOnly(header.path);
 		std::cmatch m;
-		if (std::regex_match(header.path.c_str(), m, re_userproxy) and m.size() == 2)
+		if (std::regex_match(path.c_str(), m, re_userproxy) and m.size() == 2)
 		{
-			//½âÎöJSON
+			//ï¿½ï¿½ï¿½ï¿½JSON
 			neb::CJsonObject data;
 			if (!data.Parse(buffer.ToString()))
 			{
@@ -657,17 +965,17 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 			}
 			if (m[1].str() == "login")
 			{
-				//µÇÂ¼Âß¼­
+				//ï¿½ï¿½Â¼ï¿½ß¼ï¿½
 				std::string password = data("password");
 				if (!this->user_password || *this->user_password != password)
 				{
 					WebControlServer::SendErrorResponse(connection, 401, "Invalid password");
 					return 0;
 				}
-				//Éú³Étoken
+				//ï¿½ï¿½ï¿½ï¿½token
 				this->user_token = std::to_string(std::chrono::system_clock::now().time_since_epoch().count());
-				this->token_expiry_time = std::chrono::system_clock::now() + std::chrono::hours(1); // tokenÓÐÐ§ÆÚ1Ð¡Ê±
-				Logger::LogInfo("WebAPI: User successfully logged in via WebAPI");
+				this->token_expiry_time = std::chrono::system_clock::now() + std::chrono::hours(1); // tokenï¿½ï¿½Ð§ï¿½ï¿½1Ð¡Ê±
+				Logger::LogInfo("WebPanel: User successfully logged in via web panel");
 				neb::CJsonObject response;
 				response.Add("status", 200);
 				response.Add("message", "Login successful");
@@ -683,7 +991,7 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 			}
 			else
 			{
-				//¼ì²étoken
+				//ï¿½ï¿½ï¿½token
 				std::string cookie = header.headers.GetHeader("Authorize");
 				if (!CheckToken(cookie, this->user_token, this->token_expiry_time))
 				{
@@ -691,10 +999,44 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 				}
 				else
 				{
-					//´¦ÀíÒµÎñÂß¼­²¢·µ»Ø½á¹û
+					//ï¿½ï¿½ï¿½ï¿½Òµï¿½ï¿½ï¿½ß¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ø½ï¿½ï¿½
 					neb::CJsonObject response_body;
+					const std::string proxy_id = RequestProxyId(header.path, &data, proxy_manager);
+					auto proxy = proxy_manager ? proxy_manager->GetProxy(proxy_id) : nullptr;
+					auto require_proxy = [&]() -> bool {
+						if (proxy)
+						{
+							return true;
+						}
+						response_body.Add("status", 404);
+						response_body.Add("message", "Proxy not found");
+						this->SendErrorResponse(connection, response_body, 404);
+						return false;
+						};
 					
-					if (m[1].str() == "add_whitelist_user")
+					if (m[1].str() == "create_proxy_server")
+					{
+						if (this->CreateProxyServer(response_body, data, proxy_manager))
+						{
+							this->SendSuccessResponse(connection, response_body);
+						}
+						else
+						{
+							WebControlServer::SendErrorResponse(connection, response_body);
+						}
+					}
+					else if (m[1].str() == "remove_proxy_server")
+					{
+						if (this->RemoveProxyServer(response_body, data, proxy_manager))
+						{
+							this->SendSuccessResponse(connection, response_body);
+						}
+						else
+						{
+							WebControlServer::SendErrorResponse(connection, response_body);
+						}
+					}
+					else if (m[1].str() == "add_whitelist_user")
 					{
 						if (this->AddWhitelistUser(response_body, data, proxy))
 						{
@@ -740,6 +1082,7 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 					}
 					else if (m[1].str() == "set_user_proxy")
 					{
+						if (!require_proxy()) return 0;
 						if (this->SetUserProxy(response_body, data, proxy))
 						{
 							this->SendSuccessResponse(connection, response_body);
@@ -751,6 +1094,7 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 					}
 					else if (m[1].str() == "remove_user_proxy")
 					{
+						if (!require_proxy()) return 0;
 						if (this->RemoveUserProxy(response_body, data, proxy))
 						{
 							this->SendSuccessResponse(connection, response_body);
@@ -762,7 +1106,8 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 					}
 					else if (m[1].str() == "set_max_users")
 					{
-						if (this->SetMaxUsers(response_body, data, proxy))
+						if (!require_proxy()) return 0;
+						if (this->SetMaxUsers(response_body, data, proxy_manager, proxy_id))
 						{
 							this->SendSuccessResponse(connection, response_body);
 						}
@@ -773,6 +1118,7 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 					}
 					else if (m[1].str() == "kick_player")
 					{
+						if (!require_proxy()) return 0;
 						if (this->KickPlayer(response_body, data, proxy))
 						{
 							this->SendSuccessResponse(connection, response_body);
@@ -784,7 +1130,8 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 					}
 					else if (m[1].str() == "get_online_number_list")
 					{
-						if (this->GetUserNumberList(response_body, data, proxy))
+						if (!require_proxy()) return 0;
+						if (this->GetUserNumberList(response_body, data, proxy_id))
 						{
 							this->SendSuccessResponse(connection, response_body);
 						}
@@ -795,7 +1142,20 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 					}
 					else if (m[1].str() == "set_motd")
 					{
+						if (!require_proxy()) return 0;
 						if (this->SetMotd(response_body, data, proxy))
+						{
+							this->SendSuccessResponse(connection, response_body);
+						}
+						else
+						{
+							WebControlServer::SendErrorResponse(connection, response_body);
+						}
+					}
+					else if (m[1].str() == "reload_motd")
+					{
+						if (!require_proxy()) return 0;
+						if (this->ReloadMotd(response_body, proxy_manager, proxy_id))
 						{
 							this->SendSuccessResponse(connection, response_body);
 						}
@@ -819,7 +1179,7 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 		});
 
 	this->server.SetOptionsHandle([this](const RbsLib::Network::TCP::TCPConnection& connection, RbsLib::Network::HTTP::RequestHeader& header) -> int {
-		//´¦ÀíOPTIONSÇëÇó£¬Ö÷Òª´¦ÀíCORSÔ¤¼ìÇëÇó
+		//ï¿½ï¿½ï¿½ï¿½OPTIONSï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½CORSÔ¤ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		RbsLib::Network::HTTP::ResponseHeader response;
 		response.status = 204; // No Content
 		response.headers.AddHeader("Access-Control-Allow-Origin", "*");
@@ -839,10 +1199,10 @@ void WebControlServer::Start(std::shared_ptr<Proxy>& proxy_client)
 
 		}
 		}).detach();
-	std::thread([this, &proxy_client]() {
+	std::thread([this, proxy_manager]() {
 		try
 		{
-			asio::co_spawn(this->io_context, this->TimeTaskUsers(proxy_client), asio::detached);
+			asio::co_spawn(this->io_context, this->TimeTaskUsers(proxy_manager), asio::detached);
 			this->io_context.run();
 		}
 		catch (const std::exception& e)

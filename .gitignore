@@ -70,9 +70,11 @@ build/
 minecraftspeedproxy
 
 #Config file
+config.json
 banned-players.txt
 whitelist.txt
 motd.json
+data/
 
 .vs
 

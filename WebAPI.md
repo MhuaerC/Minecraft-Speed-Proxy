@@ -7,6 +7,8 @@ WebAPI当前版本采用单用户登录方式，无需用户名，密码在配�
 
 可以在GitHub中查找由其他开发者开发的第三方管理面板，但请注意安全性。
 
+内置网页管理面板可通过 WebAPI 服务根路径访问，例如 `http://127.0.0.1:20220/`。面板使用本文档中的同一套登录接口与 `Authorize` token。
+
 # Authentication 鉴权
 
 * API Key (apikey-header-Authorize)
@@ -15,6 +17,8 @@ WebAPI当前版本采用单用户登录方式，无需用户名，密码在配�
 通过login接口获取token后，在需要身份验证的请求中添加请求头部Authorize字段，值为token。
 
 # Interfaces 接口
+
+除登录、登出、白名单/黑名单和加速服务器列表管理外，操作具体加速服务器的接口都可以通过查询参数 `proxy_id` 指定目标，例如 `/api/get_status?proxy_id=default`。不传时默认使用第一个加速服务器。
 
 ## POST 登录
 
@@ -66,6 +70,59 @@ POST /api/login
 |» message|string|true|none||none|
 |» token|string|true|none||none|
 |» token_expiry_time|integer|true|none||none|
+
+## GET 获取加速服务器列表
+
+GET /api/get_proxy_servers
+
+返回当前正在运行的多个加速服务器。
+
+```json
+{
+  "default_proxy_id": "default",
+  "proxies": [
+    {
+      "id": "default",
+      "name": "Default",
+      "local_address": "0.0.0.0",
+      "local_port": 25565,
+      "remote_address": "mc.hypixel.net",
+      "remote_port": 25565,
+      "running": true,
+      "online_users": 0,
+      "listen_endpoint": "0.0.0.0:25565"
+    }
+  ],
+  "status": 200,
+  "message": "OK"
+}
+```
+
+## POST 创建加速服务器
+
+POST /api/create_proxy_server
+
+```json
+{
+  "name": "Hypixel",
+  "local_address": "0.0.0.0",
+  "local_port": 25566,
+  "remote_address": "mc.hypixel.net",
+  "remote_port": 25565,
+  "max_player": -1,
+  "motd_path": ""
+}
+```
+
+## POST 删除加速服务器
+
+POST /api/remove_proxy_server
+
+```json
+{
+  "proxy_id": "default"
+}
+```
 
 
 ## GET 获取在线用户列表
@@ -827,6 +884,49 @@ POST /api/get_online_number_list
 |»» online_users|integer|false|none||none|
 |» status|integer|true|none||none|
 |» message|string|true|none||none|
+
+## GET 获取运行状态
+
+GET /api/get_status
+
+返回网页面板所需的基础运行状态。
+
+> 返回示例
+
+```json
+{
+  "start_time": 1755612000,
+  "now_time": 1755612600,
+  "uptime_seconds": 600,
+  "online_users": 0,
+  "max_player": -1,
+  "whitelist_status": true,
+  "default_proxy": "mc.hypixel.net:25565",
+  "status": 200,
+  "message": "OK"
+}
+```
+
+## POST 重新加载MOTD
+
+POST /api/reload_motd
+
+从配置文件中的 `MotdPath` 重新加载 MOTD；如果 `MotdPath` 为空则恢复默认 MOTD。
+
+> Body 请求参数
+
+```json
+{}
+```
+
+> 返回示例
+
+```json
+{
+  "status": 200,
+  "message": "MOTD reloaded successfully"
+}
+```
 
 # 数据模型
 

@@ -12,7 +12,7 @@ EXECUTE_PROCESS(COMMAND git describe --tags --always --dirty=-dev
 MESSAGE(STATUS "building version ${GIT_VERSION}")
 add_definitions(-DBUILD_VERSION=\"${GIT_VERSION}\")
 
-if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
 	add_definitions(-DDEBUG)
 else ()
 	add_definitions(-DRELEASE)
@@ -27,6 +27,8 @@ file(GLOB JSON_LIB_SRC "json/*.cpp")
 
 include_directories("asio/include")
 
+find_package(Threads REQUIRED)
+
 # 将源代码添加到此项目的可执行文件。
 # 若需要二次开发请修改下面指令中的文件名
 add_executable (minecraftspeedproxy 
@@ -37,6 +39,7 @@ add_executable (minecraftspeedproxy
 "datapackage.cpp" "datapackage.h"
 "logger.cpp" "logger.h"
 "proxy.cpp" "proxy.h"
+"ProxyManager.cpp" "ProxyManager.h"
 "helper.cpp" "helper.h"
 "WebControl.cpp" "WebControl.h"
 ${RBS_LIB_SRC} ${JSON_LIB_SRC} )
@@ -45,6 +48,8 @@ ${RBS_LIB_SRC} ${JSON_LIB_SRC} )
 if (WIN32)
   target_link_libraries(minecraftspeedproxy ws2_32.lib)
 endif()
+
+target_link_libraries(minecraftspeedproxy Threads::Threads)
 
 set_property(TARGET minecraftspeedproxy PROPERTY CXX_STANDARD 20)
 

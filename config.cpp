@@ -76,10 +76,11 @@ void Config::upgrade_config_v1_1()
 	if (Config::get_config<std::string>("Version") == "1.0")
 	{
 		Config::set_config("Version", "1.1");
-		Config::set_config("WebAPIEnable", true,true);
-		Config::set_config("WebAPIAddress", "127.0.0.1");
-		Config::set_config("WebAPIPort", 20220);
-		Config::set_config("WebAPIPassword", "admin");
+		Config::set_config("WebPanelEnable", true,true);
+		Config::set_config("WebPanelAddress", "127.0.0.1");
+		Config::set_config("WebPanelPort", 20220);
+		Config::set_config("WebPanelPassword", "admin");
+		Config::set_config("ProxyListPath", "./proxies.json");
 	}
 }
 
@@ -103,6 +104,7 @@ void Config::SetDefaultConfig()
 	//杂项
 	Config::set_config("DefaultEnableWhitelist", true,true);
 	Config::set_config("WhiteBlcakListPath","./WhiteBlackList.json");
+	Config::set_config("ProxyListPath", "./proxies.json");
 	Config::set_config("AllowInput", true,true);
 	Config::set_config("ShowOnlinePlayerNumber", true,true);//已弃用
 
@@ -111,11 +113,11 @@ void Config::SetDefaultConfig()
 	Config::set_config("ShowLogLevel", 0);
 	Config::set_config("SaveLogLevel", 0);
 
-	//WebAPI相关
-	Config::set_config("WebAPIEnable", true,true);
-	Config::set_config("WebAPIAddress", "127.0.0.1");
-	Config::set_config("WebAPIPort", 20220);
-	Config::set_config("WebAPIPassword", "admin");
+	//WebPanel相关
+	Config::set_config("WebPanelEnable", true,true);
+	Config::set_config("WebPanelAddress", "127.0.0.1");
+	Config::set_config("WebPanelPort", 20220);
+	Config::set_config("WebPanelPassword", "admin");
 
 }
 

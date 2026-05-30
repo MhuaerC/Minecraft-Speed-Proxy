@@ -158,37 +158,60 @@ Proxy::~Proxy() noexcept
 	//正常退出，关闭acceptor和所有连接，等待所有协程结束后其所属线程退出，然后关闭io_context
 	try
 	{
-		this->acceptor->close();
-		asio::co_spawn(this->strand,
-			[this]() -> asio::awaitable<void> {
-				for (auto& conn : this->connections)
-				{
-					try
+		bool has_running_thread = false;
+		for (auto& thread : this->io_threads)
+		{
+			if (thread.joinable())
+			{
+				has_running_thread = true;
+				break;
+			}
+		}
+		if (has_running_thread && !this->io_context.stopped())
+		{
+			asio::co_spawn(this->strand,
+				[this]() -> asio::awaitable<void> {
+					if (this->acceptor)
 					{
-						conn->shutdown(asio::ip::tcp::socket::shutdown_both);
+						try
+						{
+							this->acceptor->close();
+						}
+						catch (...) {}
 					}
-					catch (...) {}
-				}
-				co_return;
-			}(),
-			asio::use_future).get();
+					for (auto& conn : this->connections)
+					{
+						try
+						{
+							conn->shutdown(asio::ip::tcp::socket::shutdown_both);
+						}
+						catch (...) {}
+					}
+					co_return;
+				}(),
+				asio::use_future).get();
+		}
+		else if (this->acceptor)
+		{
+			this->acceptor->close();
+		}
 	}
-	catch (const std::exception* ex) 
+	catch (const std::exception& ex)
 	{
-		this->log_output((std::string("关闭监听器或连接时发生异常: ") + ex->what()).c_str());
-	}
-	for (auto& thread : this->io_threads)
-	{
-		if (thread.joinable())
-			thread.join();
+		this->log_output((std::string("关闭监听器或连接时发生异常: ") + ex.what()).c_str());
 	}
 	try
 	{
 		this->io_context.stop();
 	}
-	catch (const std::exception* ex)
+	catch (const std::exception& ex)
 	{
-		this->log_output((std::string("停止IO上下文时发生异常: ") + ex->what()).c_str());
+		this->log_output((std::string("停止IO上下文时发生异常: ") + ex.what()).c_str());
+	}
+	for (auto& thread : this->io_threads)
+	{
+		if (thread.joinable())
+			thread.join();
 	}
 }
 
@@ -575,9 +598,14 @@ auto Motd::LoadMotdFromFile(const std::string& path) -> std::string
 
 
 Proxy::Proxy(const std::string& local_address, std::uint16_t local_port, const std::string& remote_server_addr, std::uint16_t remote_server_port)
-	:local_address(local_address), local_port(local_port), remote_server_addr(remote_server_addr), remote_server_port(remote_server_port), strand(asio::make_strand(io_context.get_executor()))
+	: Proxy(local_address, local_port, remote_server_addr, remote_server_port, 1)
 {
-	this->io_threads.resize(std::thread::hardware_concurrency());
+}
+
+Proxy::Proxy(const std::string& local_address, std::uint16_t local_port, const std::string& remote_server_addr, std::uint16_t remote_server_port, std::size_t io_thread_count)
+	:local_address(local_address), local_port(local_port), remote_server_addr(remote_server_addr), remote_server_port(remote_server_port), io_thread_count(io_thread_count == 0 ? 1 : io_thread_count), strand(asio::make_strand(io_context.get_executor()))
+{
+	this->io_threads.resize(this->io_thread_count);
 	
 }
 

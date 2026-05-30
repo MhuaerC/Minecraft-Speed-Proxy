@@ -1,8 +1,9 @@
-﻿#include "rbslib/DataType.h"
+#include "rbslib/DataType.h"
 #include "rbslib/Network.h"
 #include <iostream>
 #include <stdlib.h>
 #include "proxy.h"
+#include "ProxyManager.h"
 #include <list>
 #include "logger.h"
 #include "rbslib/Commandline.h"
@@ -24,7 +25,79 @@
 
 using namespace std;
 
-std::shared_ptr<Proxy> proxy;
+std::shared_ptr<ProxyManager> proxy_manager;
+bool use_proxy_list_file = true;
+
+static auto GetConsoleProxy() -> std::shared_ptr<Proxy>
+{
+	if (!proxy_manager)
+	{
+		return nullptr;
+	}
+	return proxy_manager->GetDefaultProxy();
+}
+
+static auto GetConfigStringOrDefault(const std::string& key, const std::string& fallback) -> std::string
+{
+	try
+	{
+		return Config::get_config<std::string>(key);
+	}
+	catch (...)
+	{
+		return fallback;
+	}
+}
+
+static auto GetConfigStringOrDefault(const std::string& key, const std::string& legacy_key, const std::string& fallback) -> std::string
+{
+	try
+	{
+		return Config::get_config<std::string>(key);
+	}
+	catch (...)
+	{
+		return GetConfigStringOrDefault(legacy_key, fallback);
+	}
+}
+
+static auto GetConfigIntOrDefault(const std::string& key, const std::string& legacy_key, int fallback) -> int
+{
+	try
+	{
+		return Config::get_config<int>(key);
+	}
+	catch (...)
+	{
+		try
+		{
+			return Config::get_config<int>(legacy_key);
+		}
+		catch (...)
+		{
+			return fallback;
+		}
+	}
+}
+
+static auto GetConfigBoolOrDefault(const std::string& key, const std::string& legacy_key, bool fallback) -> bool
+{
+	try
+	{
+		return Config::get_config<bool>(key);
+	}
+	catch (...)
+	{
+		try
+		{
+			return Config::get_config<bool>(legacy_key);
+		}
+		catch (...)
+		{
+			return fallback;
+		}
+	}
+}
 
 class ExitRequest :public std::exception {
 public:
@@ -127,6 +200,7 @@ void MainCmdline(int argc,const char** argv) {
 		}
 		else {
 			Config::SetDefaultConfig();
+			use_proxy_list_file = false;
 			Config::set_config("Address", cmdline[1]);
 			Config::set_config("RemotePort",std::stoi(cmdline[2]));
 			Config::set_config("LocalPort", std::stoi(cmdline[3]));
@@ -154,6 +228,7 @@ void InnerCmdline(int argc, const char** argv) {
 		cout << "exit: Exit program" << endl;
 		});
 	executer.CreateSubOption("ping", 0, "Test ping latency to target server", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
+		auto proxy = GetConsoleProxy();
 		if (proxy == nullptr) throw std::runtime_error("Service not started");
 		try
 		{
@@ -165,6 +240,7 @@ void InnerCmdline(int argc, const char** argv) {
 		}
 		});
 	executer.CreateSubOption("maxplayer", -1, "Set maximum player count", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
+		auto proxy = GetConsoleProxy();
 		if (proxy == nullptr) throw std::runtime_error("Service not started");
 		if (args.find("maxplayer") == args.end()) {
 			cout << "Current online players: " << proxy->GetUsersInfo().size() << endl;
@@ -176,8 +252,9 @@ void InnerCmdline(int argc, const char** argv) {
 		});
 	executer.CreateSubOption("motd", 0, "MOTD management", true);
 	executer["motd"].CreateSubOption("reload", 0, "Reload MOTD", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
+		auto proxy = GetConsoleProxy();
 		if (proxy == nullptr) throw std::runtime_error("Service not started");
-		proxy->SetMotd(Motd::LoadMotdFromFile(Config::get_config<std::string>("MotdPath")));
+		proxy_manager->ReloadMotd(proxy_manager->GetDefaultProxyId());
 		Logger::LogInfo("MOTD reloaded");
 		});
 	executer.CreateSubOption("kick", -1, "Kick users", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
@@ -185,8 +262,9 @@ void InnerCmdline(int argc, const char** argv) {
 			cout << "Parameter error, please specify the player name to kick" << endl;
 			return;
 		}
+		auto proxy = GetConsoleProxy();
+		if (proxy == nullptr) throw std::runtime_error("Service not started");
 		for (const auto& it : args.find("kick")->second) {
-			if (proxy==nullptr) throw std::runtime_error("Service not started");
 			try
 			{
 				proxy->KickByUsername(it);
@@ -263,6 +341,7 @@ void InnerCmdline(int argc, const char** argv) {
 				WhiteBlackList::AddBlackList(it);
 				cout << "Added " << it << " to blacklist" << endl;
 				//尝试踢出用户
+				auto proxy = GetConsoleProxy();
 				if (proxy != nullptr) {
 					try
 					{
@@ -298,6 +377,7 @@ void InnerCmdline(int argc, const char** argv) {
 		}
 		});
 	executer["list"].CreateSubOption("players", 0, "List online players", false, [](RbsLib::Command::CommandExecuter::Args const& args) {
+		auto proxy = GetConsoleProxy();
 		if (proxy == nullptr) throw std::runtime_error("Service not started");
 		printf("%-15s %-36s %-19s %-10s %s\n", "username", "uuid", "login-time", "flow", "address");
 		for (auto& it : proxy->GetUsersInfo()) {
@@ -325,6 +405,7 @@ void InnerCmdline(int argc, const char** argv) {
 			cout << "Parameter error, please specify username, remote server address and port" << endl;
 			return;
 		}
+		auto proxy = GetConsoleProxy();
 		if (proxy == nullptr) throw std::runtime_error("Service not started");
 		auto it = args.find("set")->second.begin();
 		std::string username = *it++;
@@ -334,6 +415,7 @@ void InnerCmdline(int argc, const char** argv) {
 		Logger::LogInfo("Set proxy server for %s to %s:%d", username.c_str(), remote_server_address.c_str(), remote_server_port);
 		});
 	executer["userproxy"].CreateSubOption("list", 0, "List all user proxy servers", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
+		auto proxy = GetConsoleProxy();
 		if (proxy == nullptr) throw std::runtime_error("Service not started");
 		auto user_proxy_map = proxy->GetUserProxyMap();
 		if (user_proxy_map.empty()) {
@@ -350,6 +432,7 @@ void InnerCmdline(int argc, const char** argv) {
 			cout << "Parameter error, please specify the username to delete proxy server setting" << endl;
 			return;
 		}
+		auto proxy = GetConsoleProxy();
 		if (proxy == nullptr) throw std::runtime_error("Service not started");
 		for (const auto& it : args.find("delete")->second) {
 			proxy->DeleteUserProxy(it);
@@ -357,6 +440,7 @@ void InnerCmdline(int argc, const char** argv) {
 		}
 		});
 	executer["userproxy"].CreateSubOption("clear", 0, "Clear all user proxy server settings", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
+		auto proxy = GetConsoleProxy();
 		if (proxy == nullptr) throw std::runtime_error("Service not started");
 		proxy->ClearUserProxy();
 		Logger::LogInfo("Cleared all user proxy server settings");
@@ -367,10 +451,14 @@ void InnerCmdline(int argc, const char** argv) {
 			cout << "Parameter error, please specify the DNProxy server address" << endl;
 			return;
 		}
+		auto proxy = GetConsoleProxy();
+		if (proxy == nullptr) throw std::runtime_error("Service not started");
 		proxy->EnableDomainNameProxy(*args.find("enable")->second.begin());
 		Logger::LogInfo("Enabled DNProxy");
 		});
 	executer["dnproxy"].CreateSubOption("disable", 0, "Disable DNProxy", false, [](const RbsLib::Command::CommandExecuter::Args& args) {
+		auto proxy = GetConsoleProxy();
+		if (proxy == nullptr) throw std::runtime_error("Service not started");
 		proxy->DisableDomainNameProxy();
 		Logger::LogInfo("Disabled DNProxy");
 		});
@@ -384,6 +472,8 @@ void InnerCmdline(int argc, const char** argv) {
 		std::string domain_name = *it++;
 		std::string address = *it++;
 		std::uint16_t port = std::stoi(*it);
+		auto proxy = GetConsoleProxy();
+		if (proxy == nullptr) throw std::runtime_error("Service not started");
 		proxy->AddDomainNameProxyMapping(domain_name, address, port);
 		Logger::LogInfo("Added DNProxy mapping: %s -> %s:%d", domain_name.c_str(), address.c_str(), port);
 		});
@@ -392,6 +482,8 @@ void InnerCmdline(int argc, const char** argv) {
 			cout << "Parameter error, please specify domain name to remove" << endl;
 			return;
 		}
+		auto proxy = GetConsoleProxy();
+		if (proxy == nullptr) throw std::runtime_error("Service not started");
 		for (const auto& it : args.find("remove")->second) {
 			proxy->RemoveDomainNameProxyMapping(it);
 			Logger::LogInfo("Removed DNProxy mapping for domain name: %s", it.c_str());
@@ -436,93 +528,71 @@ int main(int argc,const char**argv)
 		if (WhiteBlackList::IsWhiteListOn()) {
 			Logger::LogInfo("Whitelist is enabled");
 		}
-		Logger::LogInfo("Local address: %s port: %d", local_address.c_str(), local_port);
-		Logger::LogInfo("Remote server address: %s port: %d", remote_server_addr.c_str(), remote_server_port);
-		proxy = std::make_shared<Proxy>(local_address, local_port, remote_server_addr, remote_server_port);
-		/*
-		proxy->on_connected += [](const RbsLib::Network::TCP::TCPConnection& client) {
-			//std::cout <<client.GetAddress() <<"connected" << std::endl;
-			};//注册连接回调
-			*/
+		ProxyServiceConfig default_service;
+		default_service.id = "default";
+		default_service.name = "Default";
+		default_service.local_address = local_address;
+		default_service.local_port = local_port;
+		default_service.remote_address = remote_server_addr;
+		default_service.remote_port = remote_server_port;
+		default_service.max_player = Config::get_config<int>("MaxPlayer");
+		default_service.motd_path = Config::get_config<std::string>("MotdPath");
 
-		proxy->on_login += [](Proxy::ConnectionControl& control) {
-			if (WhiteBlackList::IsInBlack(control.Username()))
-				control.isEnableConnect = false, control.reason = "You are in black list";
-			else if (WhiteBlackList::IsWhiteListOn() && !WhiteBlackList::IsInWhite(control.Username()))
-				control.isEnableConnect = false, control.reason = "You are not in white list";
-			else
-				Logger::LogPlayer("Player %s uuid:%s logged in from %s", control.Username().c_str(), control.UUID().c_str(), control.GetAddress().c_str());
-			};
-		proxy->on_logout += [](Proxy::ConnectionControl& control) {
-			double flow = control.UploadBytes();
-			std::string unit = "bytes";
-			if (flow > 10000) {
-				flow /= 1024;
-				unit = "KB";
-			}
-			if (flow > 10000) {
-				flow /= 1024;
-				unit = "MB";
-			}
-			if (flow > 10000) {
-				flow /= 1024;
-				unit = "GB";
-			}
-			double time = std::time(nullptr) - control.ConnectTime();
-			std::string time_unit = "seconds";
-			if (time > 100) {
-				time /= 60;
-				time_unit = "minutes";
-			}
-			if (time > 100) {
-				time /= 60;
-				time_unit = "hours";
-			}
-			Logger::LogPlayer("Player %s uuid:%s logged out from %s, online duration %.1lf %s, traffic used %.3lf %s", control.Username().c_str(), control.UUID().c_str(), control.GetAddress().c_str(), time, time_unit.c_str(), flow, unit.c_str());
-			};//注册登出回调
-		//proxy->log_output += [](const char* str) {puts(str); };
-		proxy->Start();
-		proxy->SetMotd(Motd::LoadMotdFromFile(Config::get_config<std::string>("MotdPath")));
-		proxy->SetMaxPlayer(Config::get_config<int>("MaxPlayer"));
-		Logger::LogInfo("Testing ping to target server");
-		try
+		proxy_manager = std::make_shared<ProxyManager>();
+		if (use_proxy_list_file)
 		{
-			Logger::LogInfo("Ping test latency: %dms", proxy->PingTest());
+			proxy_manager->SetStorePath(GetConfigStringOrDefault("ProxyListPath", "./proxies.json"));
+			Logger::LogInfo("Proxy service list path: %s", proxy_manager->GetStorePath().c_str());
 		}
-		catch (const std::exception& e)
+		else
 		{
-			Logger::LogWarn("Ping test failed, please check remote server status: %s", e.what());
+			Logger::LogInfo("Command line mode: proxy service list persistence is disabled");
 		}
-		
-		Logger::LogInfo("Service started");
+
+		std::shared_ptr<WebControlServer> web_server = nullptr;
+		if (GetConfigBoolOrDefault("WebPanelEnable", "WebAPIEnable", true))
+		{
+			Logger::LogInfo("Preparing web panel");
+			std::string web_addr = GetConfigStringOrDefault("WebPanelAddress", "WebAPIAddress", "0.0.0.0");
+			std::uint16_t web_port = GetConfigIntOrDefault("WebPanelPort", "WebAPIPort", 20220);
+			std::string web_password = GetConfigStringOrDefault("WebPanelPassword", "WebAPIPassword", "");
+			if (web_addr.empty() || web_port == 0 || web_password.empty())
+			{
+				Logger::LogError("Web panel configuration incomplete, please check config file");
+				return 1;
+			}
+			Logger::LogInfo("Web panel address: %s:%d", web_addr.c_str(), web_port);
+			web_server = std::make_shared<WebControlServer>(web_addr, web_port);
+			web_server->SetUserPassword(web_password);
+		}
+		std::weak_ptr<WebControlServer> web_server_weak = web_server;
+		proxy_manager->SetLogSink([web_server_weak](const std::string& proxy_id, const std::string& message) {
+			Logger::LogInfo("[%s] %s", proxy_id.c_str(), message.c_str());
+			if (auto server = web_server_weak.lock())
+			{
+				server->AppendProxyLog(proxy_id, message);
+			}
+			});
+
+		proxy_manager->LoadFromDiskOrCreate(default_service);
+		Logger::LogInfo("Service started, proxy service count: %d", static_cast<int>(proxy_manager->Size()));
+
+		if (web_server)
+		{
+			Logger::LogInfo("Starting web panel");
+			web_server->Start(proxy_manager);
+		}
+		else
+		{
+			Logger::LogInfo("Web panel is not enabled");
+		}
+
 		//检查是否开启命令行，如果不开启，则阻塞
 		if (!enable_input)
 		{
 			Logger::LogInfo("Command line input is disabled, use CTRL-C to exit");
 			counting_semaphore sem(0);
 			sem.acquire(); //无限阻塞
-		}
-		//web启动
-		std::shared_ptr<WebControlServer> web_server = nullptr;
-		if (Config::get_config<bool>("WebAPIEnable"))
-		{
-			Logger::LogInfo("Starting WebAPI");
-			std::string web_addr = Config::get_config<std::string>("WebAPIAddress");
-			std::uint16_t web_port = Config::get_config<int>("WebAPIPort");
-			std::string web_password = Config::get_config<std::string>("WebAPIPassword");
-			if (web_addr.empty() || web_port == 0 || web_password.empty())
-			{
-				Logger::LogError("WebAPI configuration incomplete, please check config file");
-				return 1;
-			}
-			Logger::LogInfo("WebAPI address: %s:%d", web_addr.c_str(), web_port);
-			web_server = std::make_shared<WebControlServer>(web_addr, web_port);
-			web_server->SetUserPassword(web_password);
-			web_server->Start(proxy);
-		}
-		else
-		{
-			Logger::LogInfo("Web console is not enabled");
 		}
 		
 
@@ -565,9 +635,9 @@ int main(int argc,const char**argv)
 					Logger::LogInfo("Server will exit within 5 seconds");
 					this_thread::sleep_for(chrono::seconds(5));
 					std::exit(0);
-					}).detach();
+				}).detach();
 				web_server = nullptr;
-				proxy = nullptr;
+				proxy_manager = nullptr;
 				Logger::LogInfo("Server exited, exit code: %d", req.exit_code);
 				return req.exit_code;
 			}

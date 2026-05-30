@@ -1,0 +1,9 @@
+build
+out
+.vs
+.idea
+*.tar.gz
+*.zip
+*.log
+config.json
+data

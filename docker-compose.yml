@@ -1,0 +1,11 @@
+services:
+  minecraft-speed-proxy:
+    image: ghcr.io/mhuaerc/minecraft-speed-proxy:latest
+    pull_policy: always
+    container_name: minecraft-speed-proxy
+    restart: unless-stopped
+    network_mode: host
+    command: ["-c", "/config/config.json"]
+    volumes:
+      - ./config.json:/config/config.json:ro
+      - ./data:/app/data
