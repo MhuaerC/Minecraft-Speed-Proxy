@@ -14,6 +14,44 @@ Minecraft加速IP程序，支持代理Minecraft服务器，拥有白名单、用
 
 ## 获取方式
 
+### Docker Compose 部署（推荐）
+仓库根目录已经放好了 `docker-compose.yml`，默认直接拉取 GHCR 镜像运行，不在本地编译。
+
+第一次启动前，先复制示例配置，再修改项目根目录的 `config.json`：
+```bash
+cp config.json.example config.json
+mkdir -p data
+```
+
+至少需要修改：
+```json
+"WebPanelPassword": "change-me"
+```
+
+启动：
+```bash
+docker compose pull
+docker compose up -d
+```
+
+查看日志：
+```bash
+docker compose logs -f
+```
+
+停止：
+```bash
+docker compose down
+```
+
+启动后，默认加速服务器端口是 `25565`，网页管理面板默认访问：
+```text
+http://服务器IP:20220/
+```
+
+多加速服务器模式下，Compose 使用 `network_mode: host`，网页里新建的本地监听端口会直接监听到宿主机上，不需要每新增一个服务器就改一次端口映射。
+> `network_mode: host` 主要适合 Linux Docker 主机。如果使用不支持 host 网络的 Docker Desktop，需要改回 `ports` 并提前映射一个端口范围。
+
 ### 发行版下载
 1. 前往 [Release](https://github.com/AllesUgo/Minecraft-Speed-Proxy/releases/latest) 下载最新版本
 2. 解压文件
@@ -153,47 +191,6 @@ cp config.json.example config.json
 网页管理面板支持创建多个加速服务器，每个加速服务器会启动一个独立监听端口，服务列表会保存到 `ProxyListPath` 指定的 JSON 文件。
 > [!WARNING]
 > 你的密码将被不加密传输，请慎重考虑面板访问范围及网络环境安全性。可以使用反向代理用HTTPS提高安全性。
----
-
-## GitHub 镜像
-
-仓库里带了一个手动触发的 GitHub Actions 工作流，用来构建并推送 Docker 镜像到 GHCR，默认镜像地址是 `ghcr.io/mhuaerc/minecraft-speed-proxy`。
-镜像会同时打上 `latest` 和 `YYYYMMDDHHMM` 两个标签，拉取示例：
-```bash
-docker pull ghcr.io/mhuaerc/minecraft-speed-proxy:latest
-docker pull ghcr.io/mhuaerc/minecraft-speed-proxy:202605311530
-```
-如果仓库包是私有的，先执行 `docker login ghcr.io`。
-
-### Docker Compose
-仓库根目录已经放好了 `docker-compose.yml`，默认直接拉取镜像运行，不在本地编译。
-多加速服务器模式下，Compose 使用 `network_mode: host`，网页里新建的本地监听端口会直接监听到宿主机上，不需要每新增一个服务器就改一次端口映射。
-第一次启动前，先复制示例配置，再按需修改项目根目录的 `config.json` 里的面板密码；运行数据默认保存到项目目录下的 `data/`，如果不想让程序第一次启动时创建默认服务器，也可以把默认远程服务器地址一并改掉。
-
-```bash
-cp config.json.example config.json
-mkdir -p data
-```
-
-启动：
-```bash
-docker compose pull
-docker compose up -d
-```
-
-查看日志：
-```bash
-docker compose logs -f
-```
-
-停止：
-```bash
-docker compose down
-```
-
-启动后，默认加速服务器端口是 `25565`，网页管理面板默认访问 `http://127.0.0.1:20220/`。新增加速服务器时，本地端口不能重复。
-> `network_mode: host` 主要适合 Linux Docker 主机。如果使用不支持 host 网络的 Docker Desktop，需要改回 `ports` 并提前映射一个端口范围。
-
 ---
 
 ## MOTD自定义
