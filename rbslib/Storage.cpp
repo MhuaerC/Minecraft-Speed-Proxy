@@ -143,9 +143,11 @@ RbsLib::Storage::FilePermission RbsLib::Storage::StorageFile::Permission(void) c
 	if ((perm & fs::perms::others_exec) == fs::perms::others_exec) permissions |= FilePermission::OtherExecute;
 	if ((perm & fs::perms::others_read) == fs::perms::others_read) permissions |= FilePermission::OtherRead;
 	if ((perm & fs::perms::others_write) == fs::perms::others_write) permissions |= FilePermission::OtherWrite;
-	if (!access(this->path.string().c_str(), 2)) permissions |= FilePermission::Read;
-	if (!access(this->path.string().c_str(), 4)) permissions |= FilePermission::Write;
-	if (!access(this->path.string().c_str(), 6)) permissions |= FilePermission::Execute;
+	if (!access(this->path.string().c_str(), 4)) permissions |= FilePermission::Read;
+	if (!access(this->path.string().c_str(), 2)) permissions |= FilePermission::Write;
+#ifdef LINUX
+	if (!access(this->path.string().c_str(), 1)) permissions |= FilePermission::Execute;
+#endif
 	return permissions;
 }
 
