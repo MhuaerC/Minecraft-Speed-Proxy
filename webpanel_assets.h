@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #include <string_view>
 
 inline constexpr std::string_view kWebPanelHtml = R"html(<!doctype html>
@@ -511,7 +512,12 @@ tbody tr:hover {
 }
 )css";
 
-inline constexpr std::string_view kWebPanelJs = R"js((() => {
+inline auto GetWebPanelJs() -> const std::string&
+{
+	static const std::string js = []() {
+		std::string value;
+		value.reserve(25737);
+		value += R"paneljs((() => {
   const state = {
     token: localStorage.getItem("msp_panel_token") || "",
     expiry: Number(localStorage.getItem("msp_panel_expiry") || "0"),
@@ -837,7 +843,8 @@ inline constexpr std::string_view kWebPanelJs = R"js((() => {
   }
 
   function renderLogs(logs) {
-    els.logsTable.innerHTML = "";
+)paneljs";
+		value += R"paneljs(    els.logsTable.innerHTML = "";
     if (!logs.length) {
       els.logsTable.innerHTML = '<tr><td colspan="2" class="note">No logs</td></tr>';
       return;
@@ -1196,7 +1203,8 @@ inline constexpr std::string_view kWebPanelJs = R"js((() => {
     event.preventDefault();
     const username = els.whiteAddInput.value.trim();
     if (!username) return;
-    try {
+)paneljs";
+		value += R"paneljs(    try {
       await addListUser("/api/add_whitelist_user", username);
       els.whiteAddInput.value = "";
     } catch (error) {
@@ -1256,4 +1264,8 @@ inline constexpr std::string_view kWebPanelJs = R"js((() => {
   }
 
   bootstrap();
-})();)js";
+})();)paneljs";
+		return value;
+	}();
+	return js;
+}

@@ -808,7 +808,7 @@ void WebControlServer::Start(std::shared_ptr<ProxyManager>& proxy_manager)
 		}
 		if (path == "/panel.js")
 		{
-			WebControlServer::SendTextResponse(connection, std::string(kWebPanelJs), "application/javascript; charset=utf-8");
+			WebControlServer::SendTextResponse(connection, GetWebPanelJs(), "application/javascript; charset=utf-8");
 			return 0;
 		}
 		if (path == "/favicon.ico")
