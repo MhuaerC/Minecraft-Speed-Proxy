@@ -14,622 +14,491 @@ inline constexpr std::string_view kWebPanelHtml = R"html(<!doctype html>
 <body>
   <div class="app">
     <header class="topbar">
-      <div class="brand-section">
-        <div class="brand">🎮 Minecraft 加速代理</div>
-        <div class="subtitle">管理控制台</div>
+      <div>
+        <div class="brand">Minecraft 加速代理</div>
+        <div class="subtle">管理面板</div>
       </div>
       <div class="toolbar">
         <select id="activeProxySelect" class="server-select" aria-label="当前服务器"></select>
-        <span id="connectionState" class="status-badge status-warn">未连接</span>
-        <button id="refreshBtn" class="btn-secondary" type="button">刷新</button>
-        <button id="logoutBtn" class="btn-ghost" type="button">退出</button>
+        <span id="connectionState" class="status-pill status-warn">未连接</span>
+        <button id="refreshBtn" class="secondary" type="button">刷新</button>
+        <button id="logoutBtn" class="ghost" type="button">退出</button>
       </div>
     </header>
 
-    <section id="loginView" class="section login-container">
-      <form id="loginForm" class="login-box">
-        <div class="login-header">
-          <h1>🔐 登录</h1>
-          <p>请输入管理密码</p>
-        </div>
-        <label for="passwordInput">密码</label>
-        <input id="passwordInput" type="password" autocomplete="current-password" placeholder="请输入密码">
-        <button class="btn-primary" type="submit">登录</button>
-        <div id="loginMessage" class="message"></div>
+    <section id="loginView" class="section login-shell">
+      <form id="loginForm" class="login-card">
+        <label for="passwordInput">管理密码</label>
+        <input id="passwordInput" type="password" autocomplete="current-password" placeholder="请输入管理密码">
+        <button class="primary" type="submit">登录</button>
+        <div id="loginMessage" class="status-line"></div>
       </form>
     </section>
 
     <section id="panelView" class="hidden">
-      <nav class="tabs">
-        <button type="button" class="tab active" data-tab="overview">📊 概览</button>
-        <button type="button" class="tab" data-tab="servers">🖥️ 服务器</button>
-        <button type="button" class="tab" data-tab="users">👥 用户</button>
-        <button type="button" class="tab" data-tab="lists">📋 名单</button>
-        <button type="button" class="tab" data-tab="proxies">🔗 代理</button>
-        <button type="button" class="tab" data-tab="motd">💬 MOTD</button>
-        <button type="button" class="tab" data-tab="logs">📝 日志</button>
-        <button type="button" class="tab" data-tab="settings">⚙️ 设置</button>
+      <nav class="tabs" aria-label="页面导航">
+        <button type="button" class="tab active" data-tab="overview">概览</button>
+        <button type="button" class="tab" data-tab="servers">服务器</button>
+        <button type="button" class="tab" data-tab="users">在线玩家</button>
+        <button type="button" class="tab" data-tab="lists">名单</button>
+        <button type="button" class="tab" data-tab="proxies">玩家代理</button>
+        <button type="button" class="tab" data-tab="motd">MOTD</button>
+        <button type="button" class="tab" data-tab="logs">日志</button>
+        <button type="button" class="tab" data-tab="settings">设置</button>
       </nav>
 
-      <section id="overview" class="section tab-content">
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-icon">👤</div>
-            <div class="stat-info">
-              <div class="stat-label">在线人数</div>
-              <div id="metricOnline" class="stat-value">-</div>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">🎯</div>
-            <div class="stat-info">
-              <div class="stat-label">最大人数</div>
-              <div id="metricMax" class="stat-value">-</div>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">✅</div>
-            <div class="stat-info">
-              <div class="stat-label">白名单</div>
-              <div id="metricWhitelist" class="stat-value">-</div>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">🌐</div>
-            <div class="stat-info">
-              <div class="stat-label">默认代理</div>
-              <div id="metricProxy" class="stat-value">-</div>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">⏱️</div>
-            <div class="stat-info">
-              <div class="stat-label">运行时长</div>
-              <div id="metricUptime" class="stat-value">-</div>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">🚀</div>
-            <div class="stat-info">
-              <div class="stat-label">启动时间</div>
-              <div id="metricStart" class="stat-value">-</div>
-            </div>
-          </div>
+      <section id="overview" class="section tab-panel">
+        <div class="metric-grid">
+          <div class="metric"><div class="label">在线人数</div><div id="metricOnline" class="value">-</div></div>
+          <div class="metric"><div class="label">最大人数</div><div id="metricMax" class="value">-</div></div>
+          <div class="metric"><div class="label">白名单</div><div id="metricWhitelist" class="value">-</div></div>
+          <div class="metric"><div class="label">默认代理</div><div id="metricProxy" class="value long-text">-</div></div>
+          <div class="metric"><div class="label">运行时长</div><div id="metricUptime" class="value">-</div></div>
+          <div class="metric"><div class="label">启动时间</div><div id="metricStart" class="value long-text">-</div></div>
         </div>
 
         <div class="grid-2">
-          <div class="card">
-            <h3>快速操作</h3>
-            <div class="btn-group">
-              <button id="toggleWhitelistBtn" class="btn-secondary" type="button">切换白名单</button>
-              <button id="reloadMotdBtn" class="btn-secondary" type="button">重载 MOTD</button>
+          <div class="panel-box">
+            <div class="toolbar">
+              <button id="toggleWhitelistBtn" class="secondary" type="button">切换白名单</button>
+              <button id="reloadMotdBtn" class="secondary" type="button">重载 MOTD</button>
             </div>
-            <div id="overviewMessage" class="message"></div>
+            <div id="overviewMessage" class="status-line"></div>
           </div>
 
-          <div class="card">
-            <h3>最大玩家数</h3>
+          <div class="panel-box">
             <form id="maxPlayerForm">
-              <label for="maxPlayerInput">设置最大玩家数（-1 为无限制）</label>
-              <div class="input-group">
+              <label for="maxPlayerInput">最大玩家数</label>
+              <div class="form-row">
                 <input id="maxPlayerInput" type="number" step="1" placeholder="-1">
-                <button class="btn-primary" type="submit">保存</button>
+                <button class="primary" type="submit">保存</button>
               </div>
             </form>
           </div>
         </div>
       </section>
 
-      <section id="servers" class="section tab-content hidden">
+      <section id="servers" class="section tab-panel hidden">
         <div class="grid-2">
-          <div class="card">
-            <h3>创建新服务器</h3>
-            <form id="serverForm" class="form-stack">
+          <div class="panel-box">
+            <form id="serverForm" class="stack-form">
               <label for="serverName">服务器名称</label>
               <input id="serverName" type="text" placeholder="例如：生存服">
-              
-              <label>本地监听</label>
-              <div class="input-group">
+              <div class="form-row">
                 <input id="serverLocalAddress" type="text" placeholder="0.0.0.0">
                 <input id="serverLocalPort" type="number" min="1" max="65535" step="1" placeholder="本地端口">
               </div>
-              
-              <label>远程服务器</label>
-              <div class="input-group">
+              <div class="form-row">
                 <input id="serverRemoteAddress" type="text" placeholder="远程地址">
                 <input id="serverRemotePort" type="number" min="1" max="65535" step="1" placeholder="远程端口">
               </div>
-              
-              <div class="input-group">
-                <input id="serverMaxPlayer" type="number" step="1" placeholder="最大玩家数 (-1)">
+              <div class="form-row">
+                <input id="serverMaxPlayer" type="number" step="1" placeholder="-1">
                 <input id="serverMotdPath" type="text" placeholder="MOTD 路径">
               </div>
-              
-              <button class="btn-primary" type="submit">创建服务器</button>
+              <button class="primary" type="submit">创建</button>
             </form>
           </div>
-          
-          <div class="card">
-            <h3>服务器列表</h3>
-            <div class="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>名称</th>
-                    <th>本地端口</th>
-                    <th>远程地址</th>
-                    <th>操作</th>
-                  </tr>
-                </thead>
-                <tbody id="serverList"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="users" class="section tab-content hidden">
-        <div class="card">
-          <h3>在线用户</h3>
-          <div class="table-container">
+          <div class="panel-box">
             <table>
               <thead>
-                <tr><th>用户名</th><th>UUID</th></tr>
+                <tr>
+                  <th>名称</th>
+                  <th>监听地址</th>
+                  <th>目标服务器</th>
+                  <th>在线</th>
+                  <th>操作</th>
+                </tr>
               </thead>
-              <tbody id="userList"></tbody>
+              <tbody id="serversTable"></tbody>
             </table>
           </div>
         </div>
       </section>
 
-      <section id="lists" class="section tab-content hidden">
+      <section id="users" class="section tab-panel hidden">
+        <div class="panel-box">
+          <table>
+            <thead>
+              <tr>
+                <th>玩家</th>
+                <th>UUID</th>
+                <th>IP</th>
+                <th>流量</th>
+                <th>上线时间</th>
+                <th>代理</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="usersTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="lists" class="section tab-panel hidden">
         <div class="grid-2">
-          <div class="card">
-            <h3>白名单管理</h3>
-            <form id="whiteAddForm" class="form-inline">
-              <input id="whiteAddInput" type="text" placeholder="输入用户名">
-              <button class="btn-primary" type="submit">添加</button>
-            </form>
-            <div class="table-container">
-              <table>
-                <thead><tr><th>用户名</th><th>操作</th></tr></thead>
-                <tbody id="whiteList"></tbody>
-              </table>
+          <div class="panel-box">
+            <div class="toolbar">
+              <strong>白名单</strong>
+              <button id="whitelistToggleBtn" class="secondary" type="button">切换</button>
             </div>
+            <form id="whiteAddForm" class="form-row">
+              <input id="whiteAddInput" type="text" placeholder="玩家用户名">
+              <button class="primary" type="submit">添加</button>
+            </form>
+            <div id="whiteList" class="list-stack"></div>
           </div>
-          
-          <div class="card">
-            <h3>黑名单管理</h3>
-            <form id="blackAddForm" class="form-inline">
-              <input id="blackAddInput" type="text" placeholder="输入用户名">
-              <button class="btn-primary" type="submit">添加</button>
+          <div class="panel-box">
+            <strong>黑名单</strong>
+            <form id="blackAddForm" class="form-row">
+              <input id="blackAddInput" type="text" placeholder="玩家用户名">
+              <button class="primary" type="submit">添加</button>
             </form>
-            <div class="table-container">
-              <table>
-                <thead><tr><th>用户名</th><th>操作</th></tr></thead>
-                <tbody id="blackList"></tbody>
-              </table>
-            </div>
+            <div id="blackList" class="list-stack"></div>
           </div>
         </div>
       </section>
 
-      <section id="proxies" class="section tab-content hidden">
+      <section id="proxies" class="section tab-panel hidden">
         <div class="grid-2">
-          <div class="card">
-            <h3>设置用户代理</h3>
-            <form id="userProxyForm">
-              <label for="proxyUsername">用户名</label>
+          <div class="panel-box">
+            <div class="label">默认代理</div>
+            <div id="defaultProxyText" class="value long-text">-</div>
+            <form id="userProxyForm" class="stack-form">
+              <label for="proxyUsername">玩家专属代理</label>
               <input id="proxyUsername" type="text" placeholder="玩家用户名">
-              <label>代理服务器</label>
-              <div class="input-group">
-                <input id="proxyAddress" type="text" placeholder="代理地址">
+              <div class="form-row">
+                <input id="proxyAddress" type="text" placeholder="地址">
                 <input id="proxyPort" type="number" min="1" max="65535" step="1" placeholder="端口">
               </div>
-              <button class="btn-primary" type="submit">保存</button>
+              <button class="primary" type="submit">保存</button>
             </form>
           </div>
-          
-          <div class="card">
-            <h3>用户代理列表</h3>
-            <div class="table-container">
-              <table>
-                <thead><tr><th>用户名</th><th>代理地址</th><th>操作</th></tr></thead>
-                <tbody id="proxyList"></tbody>
-              </table>
-            </div>
+          <div class="panel-box">
+            <table>
+              <thead>
+                <tr>
+                  <th>玩家</th>
+                  <th>目标</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="proxyTable"></tbody>
+            </table>
           </div>
         </div>
       </section>
 
-      <section id="motd" class="section tab-content hidden">
-        <div class="card">
-          <h3>MOTD 编辑器</h3>
-          <div class="btn-group">
-            <button id="whitelistToggleBtn" class="btn-secondary" type="button">切换白名单</button>
-            <button id="motdReloadBtn" class="btn-secondary" type="button">重载</button>
-            <button id="motdPrettyBtn" class="btn-secondary" type="button">格式化</button>
-            <button id="motdSaveBtn" class="btn-primary" type="button">保存</button>
-          </div>
-          <textarea id="motdEditor" rows="15" placeholder="在此编辑 MOTD JSON..."></textarea>
-          <div id="motdMessage" class="message"></div>
+      <section id="motd" class="section tab-panel hidden">
+        <div class="toolbar">
+          <button id="motdPrettyBtn" class="secondary" type="button">格式化</button>
+          <button id="motdReloadBtn" class="secondary" type="button">重载</button>
+          <button id="motdSaveBtn" class="primary" type="button">保存</button>
+        </div>
+        <textarea id="motdEditor" spellcheck="false"></textarea>
+        <div id="motdMessage" class="status-line"></div>
+      </section>
+
+      <section id="logs" class="section tab-panel hidden">
+        <div class="panel-box">
+          <table>
+            <thead>
+              <tr>
+                <th>时间</th>
+                <th>消息</th>
+              </tr>
+            </thead>
+            <tbody id="logsTable"></tbody>
+          </table>
         </div>
       </section>
 
-      <section id="logs" class="section tab-content hidden">
-        <div class="card">
-          <h3>系统日志</h3>
-          <div class="log-container">
-            <pre id="logContent">加载中...</pre>
+      <section id="settings" class="section tab-panel hidden">
+        <div class="grid-2">
+          <div class="panel-box">
+            <div class="label">服务器</div>
+            <div id="serverInfo" class="long-text">-</div>
           </div>
-        </div>
-      </section>
-
-      <section id="settings" class="section tab-content hidden">
-        <div class="card">
-          <h3>系统设置</h3>
-          <p>更多设置功能开发中...</p>
+          <div class="panel-box">
+            <div class="label">状态</div>
+            <div id="panelStatus" class="long-text">-</div>
+          </div>
         </div>
       </section>
     </section>
-
-    <div id="panelStatus" class="message"></div>
   </div>
+
   <script src="/panel.js"></script>
 </body>
-</html>
-)html";
+</html>)html";
 
-inline constexpr std::string_view kWebPanelCss = R"css(
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+inline constexpr std::string_view kWebPanelCss = R"css(:root {
+  color-scheme: dark;
+  --bg: #0f1410;
+  --panel: #18211b;
+  --panel-soft: #1f2a22;
+  --border: #314236;
+  --text: #e7f0e8;
+  --muted: #95a79a;
+  --accent: #49d17d;
+  --accent-soft: #203629;
+  --success: #4ad18a;
+  --warning: #d1a649;
+  --danger: #ef6b63;
 }
 
-:root {
-  --bg-primary: #0f1419;
-  --bg-secondary: #1a1f2e;
-  --bg-tertiary: #252d3d;
-  --bg-hover: #2d3548;
-  --accent: #4ade80;
-  --accent-dark: #22c55e;
-  --accent-light: #86efac;
-  --text-primary: #e5e7eb;
-  --text-secondary: #9ca3af;
-  --text-muted: #6b7280;
-  --border: #374151;
-  --danger: #ef4444;
-  --warning: #f59e0b;
-  --success: #10b981;
-  --radius: 8px;
-  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-}
+* { box-sizing: border-box; }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  line-height: 1.6;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+
+button, input, select, textarea {
+  font: inherit;
+}
+
+button {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+button:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0f1410;
+}
+
+button.secondary {
+  background: var(--accent-soft);
+  border-color: #335442;
+}
+
+button.ghost {
+  background: transparent;
+}
+
+button.danger {
+  background: #291816;
+  border-color: #5a2f2b;
+  color: var(--danger);
+}
+
+input, select, textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+.server-select {
+  width: min(260px, 100%);
+}
+
+textarea {
+  min-height: 280px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+}
+
+label, .label {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
 }
 
 .app {
-  min-height: 100vh;
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.topbar,
+.section,
+.panel-box {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.22);
+}
+
+.topbar {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.brand {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.subtle,
+.note,
+.status-line {
+  color: var(--muted);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  font-size: 12px;
+}
+
+.status-ok {
+  color: var(--success);
+  border-color: #335442;
+  background: #1f2e24;
+}
+
+.status-warn {
+  color: var(--warning);
+  border-color: #5b4b2d;
+  background: #2c261a;
+}
+
+.status-bad {
+  color: var(--danger);
+  border-color: #5a2f2b;
+  background: #291816;
 }
 
 .hidden {
   display: none !important;
 }
 
-.topbar {
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
-  padding: 1rem 2rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: var(--shadow);
-}
-
-.brand-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.brand {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--accent);
-}
-
-.subtitle {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-}
-
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.server-select {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  border: 1px solid var(--border);
-  padding: 0.5rem 1rem;
-  border-radius: var(--radius);
-  font-size: 0.875rem;
-  cursor: pointer;
-  min-width: 150px;
-}
-
-.status-badge {
-  padding: 0.375rem 0.75rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.status-ok { background: var(--success); color: white; }
-.status-warn { background: var(--warning); color: white; }
-.status-bad { background: var(--danger); color: white; }
-
-button {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: var(--radius);
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-primary {
-  background: var(--accent);
-  color: var(--bg-primary);
-  font-weight: 600;
-}
-
-.btn-primary:hover {
-  background: var(--accent-dark);
-  transform: translateY(-1px);
-}
-
-.btn-secondary {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  border: 1px solid var(--border);
-}
-
-.btn-secondary:hover {
-  background: var(--bg-hover);
-}
-
-.btn-ghost {
+.login-shell {
+  margin-top: 16px;
+  min-height: calc(100vh - 112px);
+  display: grid;
+  place-items: center;
+  border: 0;
   background: transparent;
-  color: var(--text-secondary);
+  box-shadow: none;
+  padding: 24px;
 }
 
-.btn-ghost:hover {
-  color: var(--text-primary);
-  background: var(--bg-tertiary);
-}
-
-.btn-danger {
-  background: var(--danger);
-  color: white;
-}
-
-.btn-danger:hover {
-  background: #dc2626;
-}
-
-.login-container {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-}
-
-.login-box {
-  background: var(--bg-secondary);
+.login-card {
+  width: min(420px, 100%);
+  max-width: 420px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 2rem;
-  width: 100%;
-  max-width: 400px;
-  box-shadow: var(--shadow);
-}
-
-.login-header {
-  text-align: center;
-  margin-bottom: 1.5rem;
-}
-
-.login-header h1 {
-  font-size: 1.75rem;
-  margin-bottom: 0.5rem;
-  color: var(--accent);
-}
-
-.login-header p {
-  color: var(--text-secondary);
-  font-size: 0.875rem;
-}
-
-.section {
-  padding: 2rem;
+  border-radius: 6px;
+  background: var(--panel);
+  padding: 28px;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.28);
 }
 
 .tabs {
   display: flex;
-  gap: 0.5rem;
-  background: var(--bg-secondary);
-  padding: 1rem 2rem;
-  border-bottom: 1px solid var(--border);
-  overflow-x: auto;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
 }
 
-.tab {
-  padding: 0.75rem 1.5rem;
-  background: transparent;
-  color: var(--text-secondary);
-  border: none;
-  border-radius: var(--radius);
-  font-size: 0.875rem;
-  white-space: nowrap;
-}
-
-.tab:hover {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-}
-
-.tab.active {
+.tabs button.active {
   background: var(--accent);
-  color: var(--bg-primary);
-  font-weight: 600;
+  border-color: var(--accent);
+  color: #0f1410;
+  font-weight: 700;
 }
 
-.tab-content {
-  display: none;
+.section {
+  margin-top: 12px;
+  padding: 16px;
 }
 
-.tab-content:not(.hidden) {
-  display: block;
+.metric-grid,
+.grid-2 {
+  display: grid;
+  gap: 12px;
 }
 
-.card {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1.5rem;
-  box-shadow: var(--shadow);
-}
-
-.card h3 {
-  color: var(--accent);
-  margin-bottom: 1rem;
-  font-size: 1.125rem;
+.metric-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .grid-2 {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 1.5rem;
-  margin-top: 1.5rem;
+  margin-top: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.stat-card {
-  background: var(--bg-secondary);
+.metric {
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1.25rem;
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  background: var(--panel-soft);
+  padding: 12px;
+}
+
+.metric .value {
+  font-size: 22px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.panel-box {
+  padding: 12px;
+}
+
+.form-row,
+.stack-form {
+  margin-top: 10px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.stack-form > * + * {
+  margin-top: 8px;
+}
+
+.list-stack {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.list-item {
   display: flex;
   align-items: center;
-  gap: 1rem;
-}
-
-.stat-icon {
-  font-size: 2rem;
-  line-height: 1;
-}
-
-.stat-info {
-  flex: 1;
-}
-
-.stat-label {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.stat-value {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-top: 0.25rem;
-}
-
-label {
-  display: block;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  margin-bottom: 0.5rem;
-}
-
-input, textarea, select {
-  width: 100%;
-  background: var(--bg-tertiary);
+  justify-content: space-between;
+  gap: 8px;
   border: 1px solid var(--border);
-  color: var(--text-primary);
-  padding: 0.625rem;
-  border-radius: var(--radius);
-  font-size: 0.875rem;
-  margin-bottom: 1rem;
-}
-
-input:focus, textarea:focus, select:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-textarea {
-  font-family: 'Consolas', 'Monaco', monospace;
-  resize: vertical;
-  min-height: 200px;
-}
-
-.input-group {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.input-group input {
-  margin-bottom: 0;
-}
-
-.form-stack label {
-  margin-top: 0.5rem;
-}
-
-.form-inline {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.form-inline input {
-  flex: 1;
-  margin-bottom: 0;
-}
-
-.btn-group {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.table-container {
-  overflow-x: auto;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: var(--panel-soft);
 }
 
 table {
@@ -637,667 +506,785 @@ table {
   border-collapse: collapse;
 }
 
-thead {
-  background: var(--bg-tertiary);
-}
-
-th {
-  padding: 0.75rem;
+thead th {
   text-align: left;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  padding: 8px 6px;
   border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
 }
 
-td {
-  padding: 0.75rem;
+tbody td {
+  padding: 8px 6px;
   border-bottom: 1px solid var(--border);
-  font-size: 0.875rem;
+  vertical-align: top;
 }
 
 tbody tr:hover {
-  background: var(--bg-tertiary);
+  background: #223129;
 }
 
-tbody tr:last-child td {
-  border-bottom: none;
+.long-text {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.log-container {
-  background: var(--bg-primary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1rem;
-  max-height: 600px;
-  overflow-y: auto;
-}
-
-.log-container pre {
-  font-family: 'Consolas', 'Monaco', monospace;
-  font-size: 0.75rem;
-  line-height: 1.5;
-  color: var(--text-secondary);
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}
-
-.message {
-  padding: 0.75rem;
-  border-radius: var(--radius);
-  font-size: 0.875rem;
-  margin-top: 1rem;
-}
-
-.message:empty {
-  display: none;
-}
-
-.message.status-ok {
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid var(--success);
-  color: var(--success);
-}
-
-.message.status-bad {
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid var(--danger);
-  color: var(--danger);
-}
-
-@media (max-width: 768px) {
-  .topbar { flex-direction: column; gap: 1rem; }
-  .grid-2 { grid-template-columns: 1fr; }
-  .stats-grid { grid-template-columns: 1fr; }
+.action-cell {
+  white-space: nowrap;
 }
 )css";
 
-inline std::string GetWebPanelJs() {
-  std::string js = R"paneljs((function() {
-  'use strict';
-  
+inline auto GetWebPanelJs() -> const std::string&
+{
+	static const std::string js = []() {
+		std::string value;
+		value.reserve(25737);
+		value += R"paneljs((() => {
   const state = {
-    token: sessionStorage.getItem('token') || '',
-    activeProxyId: '',
+    token: localStorage.getItem("msp_panel_token") || "",
+    expiry: Number(localStorage.getItem("msp_panel_expiry") || "0"),
+    loading: false,
+    data: {},
+    servers: [],
+    selectedProxyId: localStorage.getItem("msp_selected_proxy") || "",
+    activeTab: "overview",
     timer: null
   };
 
+  const $ = (selector) => document.querySelector(selector);
   const els = {
-    loginView: document.getElementById('loginView'),
-    panelView: document.getElementById('panelView'),
-    loginForm: document.getElementById('loginForm'),
-    passwordInput: document.getElementById('passwordInput'),
-    loginMessage: document.getElementById('loginMessage'),
-    logoutBtn: document.getElementById('logoutBtn'),
-    refreshBtn: document.getElementById('refreshBtn'),
-    connectionState: document.getElementById('connectionState'),
-    activeProxySelect: document.getElementById('activeProxySelect'),
-    panelStatus: document.getElementById('panelStatus'),
-    tabs: document.querySelectorAll('.tab'),
-    tabPanels: document.querySelectorAll('.tab-content'),
-    metricOnline: document.getElementById('metricOnline'),
-    metricMax: document.getElementById('metricMax'),
-    metricWhitelist: document.getElementById('metricWhitelist'),
-    metricProxy: document.getElementById('metricProxy'),
-    metricUptime: document.getElementById('metricUptime'),
-    metricStart: document.getElementById('metricStart'),
-    toggleWhitelistBtn: document.getElementById('toggleWhitelistBtn'),
-    reloadMotdBtn: document.getElementById('reloadMotdBtn'),
-    maxPlayerForm: document.getElementById('maxPlayerForm'),
-    maxPlayerInput: document.getElementById('maxPlayerInput'),
-    overviewMessage: document.getElementById('overviewMessage'),
-    serverForm: document.getElementById('serverForm'),
-    serverName: document.getElementById('serverName'),
-    serverLocalAddress: document.getElementById('serverLocalAddress'),
-    serverLocalPort: document.getElementById('serverLocalPort'),
-    serverRemoteAddress: document.getElementById('serverRemoteAddress'),
-    serverRemotePort: document.getElementById('serverRemotePort'),
-    serverMaxPlayer: document.getElementById('serverMaxPlayer'),
-    serverMotdPath: document.getElementById('serverMotdPath'),
-    serverList: document.getElementById('serverList'),
-    userList: document.getElementById('userList'),
-    whiteAddForm: document.getElementById('whiteAddForm'),
-    whiteAddInput: document.getElementById('whiteAddInput'),
-    whiteList: document.getElementById('whiteList'),
-    blackAddForm: document.getElementById('blackAddForm'),
-    blackAddInput: document.getElementById('blackAddInput'),
-    blackList: document.getElementById('blackList'),
-    userProxyForm: document.getElementById('userProxyForm'),
-    proxyUsername: document.getElementById('proxyUsername'),
-    proxyAddress: document.getElementById('proxyAddress'),
-    proxyPort: document.getElementById('proxyPort'),
-    proxyList: document.getElementById('proxyList'),
-    whitelistToggleBtn: document.getElementById('whitelistToggleBtn'),
-    motdReloadBtn: document.getElementById('motdReloadBtn'),
-    motdPrettyBtn: document.getElementById('motdPrettyBtn'),
-    motdSaveBtn: document.getElementById('motdSaveBtn'),
-    motdEditor: document.getElementById('motdEditor'),
-    motdMessage: document.getElementById('motdMessage'),
-    logContent: document.getElementById('logContent')
+    loginView: $("#loginView"),
+    panelView: $("#panelView"),
+    loginForm: $("#loginForm"),
+    loginMessage: $("#loginMessage"),
+    loginInput: $("#passwordInput"),
+    connectionState: $("#connectionState"),
+    activeProxySelect: $("#activeProxySelect"),
+    refreshBtn: $("#refreshBtn"),
+    logoutBtn: $("#logoutBtn"),
+    overviewMessage: $("#overviewMessage"),
+    panelStatus: $("#panelStatus"),
+    serverInfo: $("#serverInfo"),
+    maxPlayerInput: $("#maxPlayerInput"),
+    maxPlayerForm: $("#maxPlayerForm"),
+    toggleWhitelistBtn: $("#toggleWhitelistBtn"),
+    whitelistToggleBtn: $("#whitelistToggleBtn"),
+    reloadMotdBtn: $("#reloadMotdBtn"),
+    usersTable: $("#usersTable"),
+    whiteList: $("#whiteList"),
+    blackList: $("#blackList"),
+    whiteAddForm: $("#whiteAddForm"),
+    whiteAddInput: $("#whiteAddInput"),
+    blackAddForm: $("#blackAddForm"),
+    blackAddInput: $("#blackAddInput"),
+    serverForm: $("#serverForm"),
+    serverName: $("#serverName"),
+    serverLocalAddress: $("#serverLocalAddress"),
+    serverLocalPort: $("#serverLocalPort"),
+    serverRemoteAddress: $("#serverRemoteAddress"),
+    serverRemotePort: $("#serverRemotePort"),
+    serverMaxPlayer: $("#serverMaxPlayer"),
+    serverMotdPath: $("#serverMotdPath"),
+    serversTable: $("#serversTable"),
+    defaultProxyText: $("#defaultProxyText"),
+    userProxyForm: $("#userProxyForm"),
+    proxyUsername: $("#proxyUsername"),
+    proxyAddress: $("#proxyAddress"),
+    proxyPort: $("#proxyPort"),
+    proxyTable: $("#proxyTable"),
+    motdEditor: $("#motdEditor"),
+    motdMessage: $("#motdMessage"),
+    motdPrettyBtn: $("#motdPrettyBtn"),
+    motdReloadBtn: $("#motdReloadBtn"),
+    motdSaveBtn: $("#motdSaveBtn"),
+    logsTable: $("#logsTable"),
+    metricOnline: $("#metricOnline"),
+    metricMax: $("#metricMax"),
+    metricWhitelist: $("#metricWhitelist"),
+    metricProxy: $("#metricProxy"),
+    metricUptime: $("#metricUptime"),
+    metricStart: $("#metricStart")
   };
 
-  function setMessage(el, msg, cls) {
-    if (!el) return;
-    el.textContent = msg;
-    el.className = 'message ' + (cls || '');
+  function setMessage(node, message, kind = "") {
+    if (!node) return;
+    node.textContent = message || "";
+    node.className = "status-line" + (kind ? " " + kind : "");
+  }
+
+  function formatBytes(value) {
+    const n = Number(value || 0);
+    if (n >= 1024 ** 3) return `${(n / 1024 ** 3).toFixed(2)} GB`;
+    if (n >= 1024 ** 2) return `${(n / 1024 ** 2).toFixed(2)} MB`;
+    if (n >= 1024) return `${(n / 1024).toFixed(2)} KB`;
+    return `${n} B`;
+  }
+
+  function formatTime(value) {
+    const n = Number(value || 0);
+    if (!n) return "-";
+    return new Date(n * 1000).toLocaleString();
+  }
+
+  function formatDuration(seconds) {
+    const total = Math.max(0, Math.floor(Number(seconds || 0)));
+    const days = Math.floor(total / 86400);
+    const hours = Math.floor((total % 86400) / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const parts = [];
+    if (days) parts.push(`${days}天`);
+    if (hours || parts.length) parts.push(`${hours}小时`);
+    parts.push(`${minutes}分钟`);
+    return parts.join(" ");
+  }
+
+  function formatJson(value) {
+    if (value === null || value === undefined) return "";
+    if (typeof value === "string") {
+      try {
+        return JSON.stringify(JSON.parse(value), null, 2);
+      } catch {
+        return value;
+      }
+    }
+    return JSON.stringify(value, null, 2);
+  }
+
+  function translateMessage(message) {
+    const text = String(message || "");
+    const map = {
+      "Invalid password": "密码错误",
+      "Unauthorized": "未授权",
+      "Request failed": "请求失败",
+      "Login failed": "登录失败",
+      "Proxy not found": "未找到代理",
+      "Server not found": "未找到服务器",
+      "Missing server fields": "请填写服务器必填项",
+      "Missing proxy fields": "请填写代理必填项",
+      "Missing 'username' field in request": "请求中缺少用户名",
+      "Missing 'remote_address' field": "请求中缺少远程地址",
+      "Missing 'proxy_id' field": "请求中缺少代理 ID",
+      "Missing 'username', 'proxy_address' or 'proxy_port' field in request": "请填写玩家名、代理地址和端口",
+      "Invalid 'proxy_port' value, must be in range 1-65535": "代理端口必须在 1-65535 之间",
+      "Invalid 'local_port' value": "本地端口无效",
+      "Invalid 'remote_port' value": "远程端口无效",
+      "Invalid 'max_users' value": "最大玩家数无效",
+      "Missing or invalid 'motd' field in request": "MOTD 配置无效",
+    };
+    return map[text] || text;
+  }
+
+  function setConnectionState(text, kind) {
+    els.connectionState.textContent = text;
+    els.connectionState.className = `status-pill ${kind}`;
+  }
+
+  function saveSession(token, expiry) {
+    state.token = token || "";
+    state.expiry = Number(expiry || 0);
+    localStorage.setItem("msp_panel_token", state.token);
+    localStorage.setItem("msp_panel_expiry", String(state.expiry));
   }
 
   function clearSession() {
-    state.token = '';
-    sessionStorage.removeItem('token');
+    state.token = "";
+    state.expiry = 0;
+    localStorage.removeItem("msp_panel_token");
+    localStorage.removeItem("msp_panel_expiry");
   }
 
   function isSessionValid() {
-    return !!state.token;
+    return !!state.token && (!state.expiry || Date.now() / 1000 < state.expiry - 5);
   }
 
-  function showLogin(msg) {
-    els.loginView.classList.remove('hidden');
-    els.panelView.classList.add('hidden');
-    if (msg) setMessage(els.loginMessage, msg, 'status-bad');
+  function setSelectedProxyId(proxyId) {
+    state.selectedProxyId = proxyId || "";
+    if (state.selectedProxyId) {
+      localStorage.setItem("msp_selected_proxy", state.selectedProxyId);
+    } else {
+      localStorage.removeItem("msp_selected_proxy");
+    }
+  }
+
+  function withSelectedProxy(path) {
+    if (!state.selectedProxyId) return path;
+    const separator = path.includes("?") ? "&" : "?";
+    return `${path}${separator}proxy_id=${encodeURIComponent(state.selectedProxyId)}`;
+  }
+
+  function showLogin(message = "") {
+    els.loginView.classList.remove("hidden");
+    els.panelView.classList.add("hidden");
+    setConnectionState("未连接", "status-warn");
+    setMessage(els.loginMessage, message, message ? "status-bad" : "");
   }
 
   function showPanel() {
-    els.loginView.classList.add('hidden');
-    els.panelView.classList.remove('hidden');
-    els.connectionState.textContent = '已连接';
-    els.connectionState.className = 'status-badge status-ok';
+    els.loginView.classList.add("hidden");
+    els.panelView.classList.remove("hidden");
+    setConnectionState("已连接", "status-ok");
   }
 
-  async function apiRequest(url, options = {}) {
-    const headers = { 'Content-Type': 'application/json' };
-    if (state.token) headers['Authorization'] = 'Bearer ' + state.token;
-    if (state.activeProxyId) headers['X-Proxy-ID'] = state.activeProxyId;
-    
-    const response = await fetch(url, { ...options, headers });
-    if (response.status === 401) {
-      clearSession();
-      showLogin('会话已过期，请重新登录');
-      throw new Error('未授权');
+  async function request(path, options = {}) {
+    const headers = new Headers(options.headers || {});
+    const isLogin = path === "/api/login";
+    if (!isLogin && state.token) {
+      headers.set("Authorize", state.token);
     }
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(text || '请求失败');
+    if (options.body && !headers.has("Content-Type") && !(options.body instanceof FormData)) {
+      headers.set("Content-Type", "application/json");
     }
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      return response.json();
-    }
-    return response.text();
-  }
-
-  async function login(password) {
-    const data = await apiRequest('/api/login', {
-      method: 'POST',
-      body: JSON.stringify({ password })
+    const response = await fetch(path, {
+      method: options.method || "GET",
+      headers,
+      body: options.body,
     });
-    state.token = data.token;
-    sessionStorage.setItem('token', data.token);
-  }
-
-  async function getProxyServers() {
-    return apiRequest('/api/get_proxy_servers');
-  }
-
-  async function createProxyServer(payload) {
-    return apiRequest('/api/create_proxy_server', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
-  }
-
-  async function removeProxyServer(proxyId) {
-    return apiRequest('/api/remove_proxy_server', {
-      method: 'POST',
-      body: JSON.stringify({ proxy_id: proxyId })
-    });
-  }
-
-  async function getStatus() {
-    return apiRequest('/api/get_status');
-  }
-
-  async function getOnlineUsers() {
-    return apiRequest('/api/get_online_users');
-  }
-
-  async function toggleWhitelist() {
-    return apiRequest('/api/toggle_whitelist', { method: 'POST' });
-  }
-
-  async function reloadMotd() {
-    return apiRequest('/api/reload_motd', { method: 'POST' });
-  }
-
-  async function saveMaxPlayers(max) {
-    return apiRequest('/api/save_max_players', {
-      method: 'POST',
-      body: JSON.stringify({ max_players: Number(max) })
-    });
-  }
-
-  async function getWhitelist() {
-    return apiRequest('/api/get_whitelist');
-  }
-
-  async function getBlacklist() {
-    return apiRequest('/api/get_blacklist');
-  }
-
-  async function addListUser(endpoint, username) {
-    return apiRequest(endpoint, {
-      method: 'POST',
-      body: JSON.stringify({ username })
-    });
-  }
-
-  async function removeListUser(endpoint, username) {
-    return apiRequest(endpoint, {
-      method: 'POST',
-      body: JSON.stringify({ username })
-    });
-  }
-
-  async function getUserProxies() {
-    return apiRequest('/api/get_user_proxies');
-  }
-
-  async function setUserProxy(username, address, port) {
-    return apiRequest('/api/set_user_proxy', {
-      method: 'POST',
-      body: JSON.stringify({ username, address, port })
-    });
-  }
-
-  async function removeUserProxy(username) {
-    return apiRequest('/api/remove_user_proxy', {
-      method: 'POST',
-      body: JSON.stringify({ username })
-    });
-  }
-
-  async function getMotd() {
-    return apiRequest('/api/get_motd');
-  }
-
-  async function saveMotd() {
-    const content = els.motdEditor.value;
-    await apiRequest('/api/save_motd', {
-      method: 'POST',
-      body: JSON.stringify({ content })
-    });
-    setMessage(els.motdMessage, '保存成功', 'status-ok');
-  }
-
-  async function getLogs() {
-    return apiRequest('/api/get_logs');
-  }
-
-  function formatJson(obj) {
-    return JSON.stringify(obj, null, 2);
-  }
-
-  function formatUptime(seconds) {
-    const d = Math.floor(seconds / 86400);
-    const h = Math.floor((seconds % 86400) / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-    const parts = [];
-    if (d > 0) parts.push(d + '天');
-    if (h > 0) parts.push(h + '小时');
-    if (m > 0) parts.push(m + '分钟');
-    if (s > 0 || parts.length === 0) parts.push(s + '秒');
-    return parts.join(' ');
-  }
-
-  function switchTab(tabName) {
-    els.tabs.forEach(t => t.classList.remove('active'));
-    els.tabPanels.forEach(p => p.classList.add('hidden'));
-    const activeTab = document.querySelector([data-tab=""]);
-    const activePanel = document.getElementById(tabName);
-    if (activeTab) activeTab.classList.add('active');
-    if (activePanel) activePanel.classList.remove('hidden');
-  }
-
-  async function refreshProxyServers() {
-    try {
-      const servers = await getProxyServers();
-      els.activeProxySelect.innerHTML = '';
-      servers.forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s.proxy_id;
-        opt.textContent = s.name || s.proxy_id;
-        els.activeProxySelect.appendChild(opt);
-      });
-      if (servers.length > 0 && !state.activeProxyId) {
-        state.activeProxyId = servers[0].proxy_id;
-        els.activeProxySelect.value = state.activeProxyId;
+    const text = await response.text();
+    let payload = {};
+    if (text) {
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        payload = { status: response.status, message: text };
       }
-      els.serverList.innerHTML = '';
-      servers.forEach(s => {
-        const row = document.createElement('tr');
-        row.innerHTML = 
-          <td></td>
-          <td></td>
-          <td>:</td>
-          <td><button class="btn-danger btn-sm" data-id="">删除</button></td>
-        ;
-        row.querySelector('button').addEventListener('click', async (e) => {
-          const id = e.target.dataset.id;
-          if (confirm('确定删除此服务器？')) {
-            await removeProxyServer(id);
-            refreshProxyServers();
-          }
-        });
-        els.serverList.appendChild(row);
-      });
-    } catch (err) {
-      console.error(err);
+    }
+    if (response.status === 401 || payload.status === 401) {
+      clearSession();
+      showLogin("未授权，请重新登录");
+      throw new Error(translateMessage(payload.message || "未授权"));
+    }
+    return payload;
+  }
+
+  async function apiOk(path, options = {}) {
+    const payload = await request(path, options);
+    if (payload && typeof payload.status === "number" && payload.status !== 200) {
+      throw new Error(translateMessage(payload.message || "请求失败"));
+    }
+    return payload;
+  }
+
+  function activateTab(name) {
+    state.activeTab = name;
+    document.querySelectorAll(".tab").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.tab === name);
+    });
+    document.querySelectorAll(".tab-panel").forEach((panel) => {
+      panel.classList.toggle("hidden", panel.id !== name);
+    });
+  }
+
+  function renderOverview(status) {
+    const online = Number(status.online_users || 0);
+    const maxPlayers = Number(status.max_player ?? -1);
+    const whitelistOn = !!status.whitelist_status;
+    els.metricOnline.textContent = String(online);
+    els.metricMax.textContent = maxPlayers < 0 ? "无限制" : String(maxPlayers);
+    els.metricWhitelist.textContent = whitelistOn ? "开启" : "关闭";
+    els.metricProxy.textContent = status.default_proxy || "-";
+    els.metricUptime.textContent = formatDuration(status.uptime_seconds || 0);
+    els.metricStart.textContent = formatTime(status.start_time);
+    els.maxPlayerInput.value = String(maxPlayers);
+    els.defaultProxyText.textContent = status.default_proxy || "-";
+    els.serverInfo.textContent = [
+      `服务器: ${status.proxy_name || status.proxy_id || "-"}`,
+      `监听: ${status.listen_endpoint || "-"}`,
+      `在线: ${online}`,
+      `最大玩家数: ${maxPlayers < 0 ? "无限制" : maxPlayers}`,
+      `白名单: ${whitelistOn ? "开启" : "关闭"}`,
+      `默认代理: ${status.default_proxy || "-"}`,
+      `启动时间: ${formatTime(status.start_time)}`
+    ].join(" | ");
+  }
+
+  function renderUsers(users) {
+    els.usersTable.innerHTML = "";
+    if (!users.length) {
+      els.usersTable.innerHTML = '<tr><td colspan="7" class="note">暂无在线玩家</td></tr>';
+      return;
+    }
+    els.usersTable.innerHTML = users.map((user) => `
+      <tr>
+        <td>${escapeHtml(user.username || "")}</td>
+        <td class="long-text">${escapeHtml(user.uuid || "")}</td>
+        <td>${escapeHtml(user.ip || "")}</td>
+        <td>${formatBytes(user.current_proxy_flow || user.current_proxy_size || 0)}</td>
+        <td>${formatTime(user.online_time_stamp || user.connect_time || 0)}</td>
+        <td class="long-text">${escapeHtml(user.proxy_target || "-")}</td>
+        <td class="action-cell">
+          <button class="danger" type="button" data-action="kick-user" data-username="${escapeAttr(user.username || "")}">踢出</button>
+        </td>
+      </tr>
+    `).join("");
+  }
+
+  function renderList(container, values, action) {
+    container.innerHTML = "";
+    if (!values.length) {
+      container.innerHTML = '<div class="note">暂无数据</div>';
+      return;
+    }
+    container.innerHTML = values.map((value) => `
+      <div class="list-item">
+        <div class="long-text">${escapeHtml(value)}</div>
+        <button class="danger" type="button" data-action="${action}" data-value="${escapeAttr(value)}">移除</button>
+      </div>
+    `).join("");
+  }
+
+  function renderProxies(data) {
+    const proxies = Array.isArray(data.user_proxies) ? data.user_proxies : [];
+    els.proxyTable.innerHTML = "";
+    if (!proxies.length) {
+      els.proxyTable.innerHTML = '<tr><td colspan="3" class="note">暂无玩家代理</td></tr>';
+      return;
+    }
+    els.proxyTable.innerHTML = proxies.map((item) => `
+      <tr>
+        <td>${escapeHtml(item.username || "")}</td>
+        <td class="long-text">${escapeHtml(`${item.proxy_target_addr || ""}:${item.proxy_target_port || ""}`)}</td>
+        <td class="action-cell">
+          <button class="danger" type="button" data-action="remove-user-proxy" data-username="${escapeAttr(item.username || "")}">删除</button>
+        </td>
+      </tr>
+    `).join("");
+  }
+
+  function renderServers(data) {
+    const servers = Array.isArray(data.proxies) ? data.proxies : [];
+    state.servers = servers;
+    const exists = servers.some((item) => item.id === state.selectedProxyId);
+    if (!exists) {
+      setSelectedProxyId(servers[0]?.id || "");
+    }
+    els.activeProxySelect.innerHTML = servers.length
+      ? servers.map((item) => `<option value="${escapeAttr(item.id || "")}">${escapeHtml(item.name || item.id || "-")} (${escapeHtml(item.listen_endpoint || "")})</option>`).join("")
+      : '<option value="">暂无服务器</option>';
+    els.activeProxySelect.value = state.selectedProxyId;
+    els.serversTable.innerHTML = "";
+    if (!servers.length) {
+      els.serversTable.innerHTML = '<tr><td colspan="5" class="note">暂无服务器</td></tr>';
+      return;
+    }
+    els.serversTable.innerHTML = servers.map((item) => `
+      <tr>
+        <td class="long-text">${escapeHtml(item.name || item.id || "")}</td>
+        <td class="long-text">${escapeHtml(item.listen_endpoint || `${item.local_address || ""}:${item.local_port || ""}`)}</td>
+        <td class="long-text">${escapeHtml(item.default_proxy || `${item.remote_address || ""}:${item.remote_port || ""}`)}</td>
+        <td>${Number(item.online_users || 0)}</td>
+        <td class="action-cell">
+          <button class="secondary" type="button" data-action="select-proxy" data-proxy-id="${escapeAttr(item.id || "")}">选择</button>
+          <button class="danger" type="button" data-action="remove-proxy-server" data-proxy-id="${escapeAttr(item.id || "")}">删除</button>
+        </td>
+      </tr>
+    `).join("");
+  }
+
+  function renderMotd(data) {
+    if (data && data.motd !== undefined) {
+      els.motdEditor.value = formatJson(data.motd);
+    } else if (!els.motdEditor.value) {
+      els.motdEditor.value = "{}";
     }
   }
 
-  async function refreshStatus() {
-    try {
-      const status = await getStatus();
-      els.metricOnline.textContent = status.online_count || 0;
-      els.metricMax.textContent = status.max_players || '-1';
-      els.metricWhitelist.textContent = status.whitelist_enabled ? '开启' : '关闭';
-      els.metricProxy.textContent = status.default_proxy || '-';
-      els.metricUptime.textContent = formatUptime(status.uptime || 0);
-      els.metricStart.textContent = status.start_time || '-';
-      els.maxPlayerInput.value = status.max_players || -1;
-    } catch (err) {
-      console.error(err);
+  function renderLogs(logs) {
+)paneljs";
+		value += R"paneljs(    els.logsTable.innerHTML = "";
+    if (!logs.length) {
+      els.logsTable.innerHTML = '<tr><td colspan="2" class="note">暂无日志</td></tr>';
+      return;
     }
-  }
-
-  async function refreshUsers() {
-    try {
-      const users = await getOnlineUsers();
-      els.userList.innerHTML = '';
-      users.forEach(u => {
-        const row = document.createElement('tr');
-        row.innerHTML = <td></td><td></td>;
-        els.userList.appendChild(row);
-      });
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async function refreshWhitelist() {
-    try {
-      const list = await getWhitelist();
-      els.whiteList.innerHTML = '';
-      list.forEach(username => {
-        const row = document.createElement('tr');
-        row.innerHTML = 
-          <td></td>
-          <td><button class="btn-danger btn-sm" data-name="">移除</button></td>
-        ;
-        row.querySelector('button').addEventListener('click', async (e) => {
-          const name = e.target.dataset.name;
-          await removeListUser('/api/remove_whitelist_user', name);
-          refreshWhitelist();
-        });
-        els.whiteList.appendChild(row);
-      });
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async function refreshBlacklist() {
-    try {
-      const list = await getBlacklist();
-      els.blackList.innerHTML = '';
-      list.forEach(username => {
-        const row = document.createElement('tr');
-        row.innerHTML = 
-          <td></td>
-          <td><button class="btn-danger btn-sm" data-name="">移除</button></td>
-        ;
-        row.querySelector('button').addEventListener('click', async (e) => {
-          const name = e.target.dataset.name;
-          await removeListUser('/api/remove_blacklist_user', name);
-          refreshBlacklist();
-        });
-        els.blackList.appendChild(row);
-      });
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async function refreshProxies() {
-    try {
-      const proxies = await getUserProxies();
-      els.proxyList.innerHTML = '';
-      proxies.forEach(p => {
-        const row = document.createElement('tr');
-        row.innerHTML = 
-          <td></td>
-          <td>:</td>
-          <td><button class="btn-danger btn-sm" data-name="">删除</button></td>
-        ;
-        row.querySelector('button').addEventListener('click', async (e) => {
-          const name = e.target.dataset.name;
-          await removeUserProxy(name);
-          refreshProxies();
-        });
-        els.proxyList.appendChild(row);
-      });
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async function refreshMotd() {
-    try {
-      const motd = await getMotd();
-      els.motdEditor.value = motd;
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-  async function refreshLogs() {
-    try {
-      const logs = await getLogs();
-      els.logContent.textContent = logs || '暂无日志';
-    } catch (err) {
-      els.logContent.textContent = '加载日志失败';
-    }
+    els.logsTable.innerHTML = logs.map((log) => `
+      <tr>
+        <td>${formatTime(log.timestamp || 0)}</td>
+        <td class="long-text">${escapeHtml(log.message || "")}</td>
+      </tr>
+    `).join("");
   }
 
   async function refreshAll(silent = false) {
+    if (!isSessionValid()) {
+      showLogin();
+      return;
+    }
+    if (state.loading) return;
+    state.loading = true;
+    if (!silent) setMessage(els.panelStatus, "加载中...");
     try {
-      await refreshProxyServers();
-      await refreshStatus();
-      await refreshUsers();
-      await refreshWhitelist();
-      await refreshBlacklist();
-      await refreshProxies();
-      await refreshMotd();
-      await refreshLogs();
-    } catch (err) {
-      if (!silent) {
-        setMessage(els.panelStatus, '刷新失败: ' + err.message, 'status-bad');
+      const servers = await apiOk("/api/get_proxy_servers");
+      renderServers(servers);
+      if (!state.selectedProxyId) {
+        state.data = { servers };
+        els.metricOnline.textContent = "-";
+        els.metricMax.textContent = "-";
+        els.metricWhitelist.textContent = "-";
+        els.metricProxy.textContent = "-";
+        els.metricUptime.textContent = "-";
+        els.metricStart.textContent = "-";
+        els.defaultProxyText.textContent = "-";
+        els.serverInfo.textContent = "未选择服务器";
+        renderUsers([]);
+        renderProxies({ user_proxies: [] });
+        renderLogs([]);
+        setMessage(els.overviewMessage, "未选择服务器");
+        setMessage(els.panelStatus, "就绪");
+        setConnectionState("已连接", "status-ok");
+        return;
       }
+      const [status, users, white, black, proxies, motd, logs] = await Promise.all([
+        apiOk(withSelectedProxy("/api/get_status")),
+        apiOk(withSelectedProxy("/api/get_online_users")),
+        apiOk("/api/get_whitelist"),
+        apiOk("/api/get_blacklist"),
+        apiOk(withSelectedProxy("/api/get_user_proxies")),
+        apiOk(withSelectedProxy("/api/get_motd")),
+        apiOk(withSelectedProxy("/api/get_logs")),
+      ]);
+      state.data = { servers, status, users, white, black, proxies, motd, logs };
+      renderOverview(status);
+      renderUsers(Array.isArray(users.online_users) ? users.online_users : []);
+      renderList(els.whiteList, Array.isArray(white.white_list) ? white.white_list : [], "remove-whitelist-user");
+      renderList(els.blackList, Array.isArray(black.black_list) ? black.black_list : [], "remove-blacklist-user");
+      renderProxies(proxies);
+      renderMotd(motd);
+      renderLogs(Array.isArray(logs.logs) ? logs.logs : []);
+      setMessage(els.overviewMessage, `已更新 ${new Date().toLocaleTimeString()}`);
+      setMessage(els.panelStatus, "就绪");
+      setConnectionState("已连接", "status-ok");
+      if (status.whitelist_status) {
+        els.toggleWhitelistBtn.textContent = "关闭白名单";
+        els.whitelistToggleBtn.textContent = "关闭";
+      } else {
+        els.toggleWhitelistBtn.textContent = "开启白名单";
+        els.whitelistToggleBtn.textContent = "开启";
+      }
+    } catch (error) {
+      setMessage(els.panelStatus, error.message, "status-bad");
+      if (String(error.message || "").includes("Unauthorized")) {
+        clearSession();
+        showLogin("未授权");
+      }
+    } finally {
+      state.loading = false;
     }
   }
 
-  els.loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const password = els.passwordInput.value;
+  async function handleLogin(event) {
+    event.preventDefault();
+    const password = els.loginInput.value.trim();
+    if (!password) {
+      setMessage(els.loginMessage, "请输入密码", "status-bad");
+      return;
+    }
+    setMessage(els.loginMessage, "正在登录...");
     try {
-      await login(password);
+      const result = await request("/api/login", {
+        method: "POST",
+        body: JSON.stringify({ password }),
+      });
+      if (result.status !== 200 || !result.token) {
+        throw new Error(result.message || "登录失败");
+      }
+      saveSession(result.token, result.token_expiry_time);
+      els.loginInput.value = "";
       showPanel();
-      refreshAll();
-      els.passwordInput.value = '';
-    } catch (err) {
-      setMessage(els.loginMessage, '登录失败: ' + err.message, 'status-bad');
+      setMessage(els.loginMessage, "");
+      await refreshAll();
+    } catch (error) {
+      setMessage(els.loginMessage, error.message, "status-bad");
+    }
+  }
+
+  async function logout() {
+    if (!state.token) {
+      showLogin();
+      return;
+    }
+    try {
+      await request("/api/logout");
+    } catch (_) {
+      // Ignore logout failures; local session is cleared below.
+    }
+    clearSession();
+    showLogin("已退出登录");
+  }
+
+  async function kickUser(username) {
+    await apiOk(withSelectedProxy("/api/kick_player"), {
+      method: "POST",
+      body: JSON.stringify({ username }),
+    });
+    await refreshAll(true);
+  }
+
+  async function removeListUser(endpoint, username) {
+    await apiOk(endpoint, {
+      method: "POST",
+      body: JSON.stringify({ username }),
+    });
+    await refreshAll(true);
+  }
+
+  async function addListUser(endpoint, username) {
+    await apiOk(endpoint, {
+      method: "POST",
+      body: JSON.stringify({ username }),
+    });
+    await refreshAll(true);
+  }
+
+  async function setUserProxy(username, address, port) {
+    await apiOk(withSelectedProxy("/api/set_user_proxy"), {
+      method: "POST",
+      body: JSON.stringify({
+        username,
+        proxy_address: address,
+        proxy_port: Number(port),
+      }),
+    });
+    await refreshAll(true);
+  }
+
+  async function removeUserProxy(username) {
+    await apiOk(withSelectedProxy("/api/remove_user_proxy"), {
+      method: "POST",
+      body: JSON.stringify({ username }),
+    });
+    await refreshAll(true);
+  }
+
+  async function createProxyServer(payload) {
+    const result = await apiOk("/api/create_proxy_server", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    setSelectedProxyId(result.proxy_id || result.id || state.selectedProxyId);
+    await refreshAll(true);
+  }
+
+  async function removeProxyServer(proxyId) {
+    await apiOk("/api/remove_proxy_server", {
+      method: "POST",
+      body: JSON.stringify({ proxy_id: proxyId }),
+    });
+    if (state.selectedProxyId === proxyId) {
+      setSelectedProxyId("");
+    }
+    await refreshAll(true);
+  }
+
+  async function saveMaxPlayers(value) {
+    await apiOk(withSelectedProxy("/api/set_max_users"), {
+      method: "POST",
+      body: JSON.stringify({ max_users: Number(value) }),
+    });
+    await refreshAll(true);
+  }
+
+  async function toggleWhitelist() {
+    const on = !!state.data?.status?.whitelist_status;
+    await apiOk(on ? "/api/disable_whitelist" : "/api/enable_whitelist");
+    await refreshAll(true);
+  }
+
+  async function reloadMotd() {
+    await apiOk(withSelectedProxy("/api/reload_motd"), { method: "POST", body: "{}" });
+    await refreshAll(true);
+  }
+
+  async function saveMotd() {
+    const text = els.motdEditor.value.trim();
+    let parsed;
+    try {
+      parsed = JSON.parse(text || "{}");
+    } catch (error) {
+      setMessage(els.motdMessage, error.message, "status-bad");
+      return;
+    }
+    await apiOk(withSelectedProxy("/api/set_motd"), {
+      method: "POST",
+      body: JSON.stringify({ motd: parsed }),
+    });
+    setMessage(els.motdMessage, "保存成功", "status-ok");
+    await refreshAll(true);
+  }
+
+  function escapeHtml(text) {
+    return String(text)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+
+  function escapeAttr(text) {
+    return escapeHtml(text).replaceAll("\n", " ");
+  }
+
+  document.addEventListener("click", async (event) => {
+    const button = event.target.closest("button");
+    if (!button) return;
+    const action = button.dataset.action;
+    if (!action) return;
+    try {
+      if (action === "kick-user") {
+        await kickUser(button.dataset.username || "");
+      } else if (action === "remove-whitelist-user") {
+        await removeListUser("/api/remove_whitelist_user", button.dataset.value || "");
+      } else if (action === "remove-blacklist-user") {
+        await removeListUser("/api/remove_blacklist_user", button.dataset.value || "");
+      } else if (action === "remove-user-proxy") {
+        await removeUserProxy(button.dataset.username || "");
+      } else if (action === "select-proxy") {
+        setSelectedProxyId(button.dataset.proxyId || "");
+        await refreshAll(true);
+      } else if (action === "remove-proxy-server") {
+        const proxyId = button.dataset.proxyId || "";
+        if (proxyId && confirm(`确定删除 ${proxyId}？`)) {
+          await removeProxyServer(proxyId);
+        }
+      }
+    } catch (error) {
+      setMessage(els.panelStatus, error.message, "status-bad");
     }
   });
 
-  els.logoutBtn.addEventListener('click', () => {
-    clearSession();
-    showLogin();
+  document.querySelectorAll(".tab").forEach((button) => {
+    button.addEventListener("click", () => activateTab(button.dataset.tab || "overview"));
   });
 
-  els.refreshBtn.addEventListener('click', () => refreshAll());
-
-  els.activeProxySelect.addEventListener('change', (e) => {
-    state.activeProxyId = e.target.value;
-    refreshAll();
+  els.activeProxySelect.addEventListener("change", async () => {
+    setSelectedProxyId(els.activeProxySelect.value);
+    await refreshAll(true);
   });
-
-  els.tabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-      switchTab(tab.dataset.tab);
-    });
-  });
-
-  els.serverForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
+  els.loginForm.addEventListener("submit", handleLogin);
+  els.refreshBtn.addEventListener("click", () => refreshAll());
+  els.logoutBtn.addEventListener("click", logout);
+  els.serverForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
     const payload = {
       name: els.serverName.value.trim(),
-      local_address: els.serverLocalAddress.value.trim() || '0.0.0.0',
+      local_address: els.serverLocalAddress.value.trim() || "0.0.0.0",
       local_port: Number(els.serverLocalPort.value),
       remote_address: els.serverRemoteAddress.value.trim(),
       remote_port: Number(els.serverRemotePort.value || 25565),
       max_player: Number(els.serverMaxPlayer.value || -1),
-      motd_path: els.serverMotdPath.value.trim()
+      motd_path: els.serverMotdPath.value.trim(),
     };
     if (!payload.local_port || !payload.remote_address || !payload.remote_port) {
-      setMessage(els.panelStatus, '请填写必填字段', 'status-bad');
+      setMessage(els.panelStatus, "请填写服务器必填项", "status-bad");
       return;
     }
     try {
       await createProxyServer(payload);
-      els.serverName.value = '';
-      els.serverLocalAddress.value = '';
-      els.serverLocalPort.value = '';
-      els.serverRemoteAddress.value = '';
-      els.serverRemotePort.value = '';
-      els.serverMaxPlayer.value = '';
-      els.serverMotdPath.value = '';
-      setMessage(els.panelStatus, '服务器创建成功', 'status-ok');
-      refreshProxyServers();
-    } catch (err) {
-      setMessage(els.panelStatus, err.message, 'status-bad');
+      els.serverName.value = "";
+      els.serverLocalAddress.value = "";
+      els.serverLocalPort.value = "";
+      els.serverRemoteAddress.value = "";
+      els.serverRemotePort.value = "";
+      els.serverMaxPlayer.value = "";
+      els.serverMotdPath.value = "";
+      setMessage(els.panelStatus, "服务器创建成功", "status-ok");
+    } catch (error) {
+      setMessage(els.panelStatus, error.message, "status-bad");
     }
   });
-
-  els.maxPlayerForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
+  els.maxPlayerForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
     try {
       await saveMaxPlayers(els.maxPlayerInput.value);
-      setMessage(els.panelStatus, '最大玩家数已更新', 'status-ok');
-    } catch (err) {
-      setMessage(els.panelStatus, err.message, 'status-bad');
+      setMessage(els.panelStatus, "最大玩家数已更新", "status-ok");
+    } catch (error) {
+      setMessage(els.panelStatus, error.message, "status-bad");
     }
   });
-
-  els.toggleWhitelistBtn.addEventListener('click', async () => {
+  els.toggleWhitelistBtn.addEventListener("click", async () => {
     try {
       await toggleWhitelist();
-      refreshStatus();
-    } catch (err) {
-      setMessage(els.panelStatus, err.message, 'status-bad');
+    } catch (error) {
+      setMessage(els.panelStatus, error.message, "status-bad");
     }
   });
-
-  els.whitelistToggleBtn.addEventListener('click', async () => {
+  els.whitelistToggleBtn.addEventListener("click", async () => {
     try {
       await toggleWhitelist();
-      refreshStatus();
-    } catch (err) {
-      setMessage(els.panelStatus, err.message, 'status-bad');
+    } catch (error) {
+      setMessage(els.panelStatus, error.message, "status-bad");
     }
   });
-
-  els.reloadMotdBtn.addEventListener('click', async () => {
+  els.reloadMotdBtn.addEventListener("click", async () => {
     try {
       await reloadMotd();
-      setMessage(els.panelStatus, 'MOTD 已重载', 'status-ok');
-    } catch (err) {
-      setMessage(els.panelStatus, err.message, 'status-bad');
+      setMessage(els.panelStatus, "MOTD 已重载", "status-ok");
+    } catch (error) {
+      setMessage(els.panelStatus, error.message, "status-bad");
     }
   });
-
-  els.motdReloadBtn.addEventListener('click', async () => {
+  els.motdReloadBtn.addEventListener("click", async () => {
     try {
       await reloadMotd();
-      setMessage(els.motdMessage, '已重载', 'status-ok');
-    } catch (err) {
-      setMessage(els.motdMessage, err.message, 'status-bad');
+      setMessage(els.motdMessage, "已重载", "status-ok");
+    } catch (error) {
+      setMessage(els.motdMessage, error.message, "status-bad");
     }
   });
-
-  els.motdPrettyBtn.addEventListener('click', () => {
+  els.motdPrettyBtn.addEventListener("click", () => {
     try {
-      els.motdEditor.value = formatJson(JSON.parse(els.motdEditor.value || '{}'));
-      setMessage(els.motdMessage, '已格式化', 'status-ok');
-    } catch (err) {
-      setMessage(els.motdMessage, err.message, 'status-bad');
+      els.motdEditor.value = formatJson(JSON.parse(els.motdEditor.value || "{}"));
+      setMessage(els.motdMessage, "已格式化", "status-ok");
+    } catch (error) {
+      setMessage(els.motdMessage, error.message, "status-bad");
     }
   });
-
-  els.motdSaveBtn.addEventListener('click', async () => {
+  els.motdSaveBtn.addEventListener("click", async () => {
     try {
       await saveMotd();
-    } catch (err) {
-      setMessage(els.motdMessage, err.message, 'status-bad');
+    } catch (error) {
+      setMessage(els.motdMessage, error.message, "status-bad");
     }
   });
-
-  els.whiteAddForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
+  els.whiteAddForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
     const username = els.whiteAddInput.value.trim();
     if (!username) return;
-    try {
-      await addListUser('/api/add_whitelist_user', username);
-      els.whiteAddInput.value = '';
-      refreshWhitelist();
-    } catch (err) {
-      setMessage(els.panelStatus, err.message, 'status-bad');
+)paneljs";
+		value += R"paneljs(    try {
+      await addListUser("/api/add_whitelist_user", username);
+      els.whiteAddInput.value = "";
+    } catch (error) {
+      setMessage(els.panelStatus, error.message, "status-bad");
     }
   });
-
-  els.blackAddForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
+  els.blackAddForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
     const username = els.blackAddInput.value.trim();
     if (!username) return;
     try {
-      await addListUser('/api/add_blacklist_user', username);
-      els.blackAddInput.value = '';
-      refreshBlacklist();
-    } catch (err) {
-      setMessage(els.panelStatus, err.message, 'status-bad');
+      await addListUser("/api/add_blacklist_user", username);
+      els.blackAddInput.value = "";
+    } catch (error) {
+      setMessage(els.panelStatus, error.message, "status-bad");
     }
   });
-
-  els.userProxyForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
+  els.userProxyForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
     const username = els.proxyUsername.value.trim();
     const address = els.proxyAddress.value.trim();
     const port = Number(els.proxyPort.value);
     if (!username || !address || !port) {
-      setMessage(els.panelStatus, '请填写所有字段', 'status-bad');
+      setMessage(els.panelStatus, "请填写代理必填项", "status-bad");
       return;
     }
     try {
       await setUserProxy(username, address, port);
-      els.proxyUsername.value = '';
-      els.proxyAddress.value = '';
-      els.proxyPort.value = '';
-      setMessage(els.panelStatus, '用户代理已保存', 'status-ok');
-      refreshProxies();
-    } catch (err) {
-      setMessage(els.panelStatus, err.message, 'status-bad');
+      els.proxyUsername.value = "";
+      els.proxyAddress.value = "";
+      els.proxyPort.value = "";
+      setMessage(els.panelStatus, "玩家代理已保存", "status-ok");
+    } catch (error) {
+      setMessage(els.panelStatus, error.message, "status-bad");
     }
   });
 
@@ -1314,7 +1301,7 @@ inline std::string GetWebPanelJs() {
       if (!isSessionValid()) {
         if (state.token) {
           clearSession();
-          showLogin('会话已过期');
+          showLogin("会话已过期");
         }
         return;
       }
@@ -1323,7 +1310,8 @@ inline std::string GetWebPanelJs() {
   }
 
   bootstrap();
-})();
-)paneljs";
-  return js;
+})();)paneljs";
+		return value;
+	}();
+	return js;
 }
