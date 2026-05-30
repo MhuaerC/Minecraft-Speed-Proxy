@@ -2,6 +2,7 @@
 #include "json/CJsonObject.h"
 #include "WhiteBlackList.h"
 #include <algorithm>
+#include <filesystem>
 #include <mutex>
 
 static std::list<std::string> WhiteList,BlackList;
@@ -22,7 +23,13 @@ static void SaveWhiteBlackList()
 	{
 		config["BlackList"].Add(uuid);
 	}
-	RbsLib::Storage::StorageFile file(Config::get_config<std::string>("WhiteBlcakListPath"));
+	const std::string path = Config::get_config<std::string>("WhiteBlcakListPath");
+	const std::filesystem::path file_path(path);
+	if (!file_path.parent_path().empty())
+	{
+		std::filesystem::create_directories(file_path.parent_path());
+	}
+	RbsLib::Storage::StorageFile file(path);
 	file.Open(RbsLib::Storage::FileIO::OpenMode::Write| RbsLib::Storage::FileIO::OpenMode::Replace, RbsLib::Storage::FileIO::SeekBase::begin, 0L).Write(RbsLib::Buffer(config.ToFormattedString()));
 }
 
@@ -44,7 +51,13 @@ void WhiteBlackList::Init()
 {
 	std::unique_lock<std::mutex> lock(WhiteBlackListMutex);
 	neb::CJsonObject config;
-	RbsLib::Storage::StorageFile file(Config::get_config<std::string>("WhiteBlcakListPath"));
+	const std::string path = Config::get_config<std::string>("WhiteBlcakListPath");
+	const std::filesystem::path file_path(path);
+	if (!file_path.parent_path().empty())
+	{
+		std::filesystem::create_directories(file_path.parent_path());
+	}
+	RbsLib::Storage::StorageFile file(path);
 	if (!file.IsExist())
 	{
 		file.Open(RbsLib::Storage::FileIO::OpenMode::Write, RbsLib::Storage::FileIO::SeekBase::begin, 0L).Write(RbsLib::Buffer("{\"WhiteList\":[],\"BlackList\":[]}"));

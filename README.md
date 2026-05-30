@@ -20,7 +20,6 @@ Minecraft加速IP程序，支持代理Minecraft服务器，拥有白名单、用
 第一次启动前，先复制示例配置，再修改项目根目录的 `config.json`：
 ```bash
 cp config.json.example config.json
-mkdir -p data
 ```
 
 至少需要修改：

@@ -61,7 +61,7 @@ bool Logger::Init(const std::string& path, int show_log_level, int save_log_leve
 	SaveLogLevel = save_log_level;
 	//检测目标文件是否存在
 	if (std::filesystem::exists(path) == false)
-		if (false == std::filesystem::create_directory(path)) return false;
+		if (false == std::filesystem::create_directories(path)) return false;
 	//检测目标文件类型
 	if (std::filesystem::status(path).type() == std::filesystem::file_type::directory)
 	{
