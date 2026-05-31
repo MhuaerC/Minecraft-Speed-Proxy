@@ -8,35 +8,29 @@ inline constexpr std::string_view kWebPanelHtml = R"html(<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Minecraft 加速代理管理面板</title>
+  <title>Minecraft 加速代理 · 管理控制台</title>
   <link rel="stylesheet" href="/panel.css">
 </head>
 <body>
-  <div class="app">
-    <header class="topbar">
-      <div>
-        <div class="brand">Minecraft 加速代理</div>
-        <div class="subtle">管理面板</div>
-      </div>
-      <div class="toolbar">
-        <select id="activeProxySelect" class="server-select" aria-label="当前服务器"></select>
-        <span id="connectionState" class="status-pill status-warn">未连接</span>
-        <button id="refreshBtn" class="secondary" type="button">刷新</button>
-        <button id="logoutBtn" class="ghost" type="button">退出</button>
-      </div>
-    </header>
+  <div id="loginView" class="login-screen">
+    <form id="loginForm" class="login-card">
+      <div class="login-mark">MSP</div>
+      <div class="login-brand">Minecraft 加速代理</div>
+      <div class="login-sub">输入管理密码以进入控制台</div>
+      <label for="passwordInput">管理密码</label>
+      <input id="passwordInput" type="password" autocomplete="current-password" placeholder="管理密码">
+      <button class="primary block" type="submit">登录</button>
+      <div id="loginMessage" class="status-line"></div>
+    </form>
+  </div>
 
-    <section id="loginView" class="section login-shell">
-      <form id="loginForm" class="login-card">
-        <label for="passwordInput">管理密码</label>
-        <input id="passwordInput" type="password" autocomplete="current-password" placeholder="请输入管理密码">
-        <button class="primary" type="submit">登录</button>
-        <div id="loginMessage" class="status-line"></div>
-      </form>
-    </section>
-
-    <section id="panelView" class="hidden">
-      <nav class="tabs" aria-label="页面导航">
+  <div id="panelView" class="app hidden">
+    <aside class="sidebar">
+      <div class="side-brand">
+        <span class="brand-mark">MSP</span>
+        <span class="brand-name">加速代理<small>管理控制台</small></span>
+      </div>
+      <nav class="nav" aria-label="页面导航">
         <button type="button" class="tab active" data-tab="overview">概览</button>
         <button type="button" class="tab" data-tab="servers">服务器</button>
         <button type="button" class="tab" data-tab="users">在线玩家</button>
@@ -46,186 +40,221 @@ inline constexpr std::string_view kWebPanelHtml = R"html(<!doctype html>
         <button type="button" class="tab" data-tab="logs">日志</button>
         <button type="button" class="tab" data-tab="settings">设置</button>
       </nav>
+      <div class="side-foot">
+        <span id="connectionState" class="status-pill status-warn">未连接</span>
+      </div>
+    </aside>
 
-      <section id="overview" class="section tab-panel">
-        <div class="metric-grid">
-          <div class="metric"><div class="label">在线人数</div><div id="metricOnline" class="value">-</div></div>
-          <div class="metric"><div class="label">最大人数</div><div id="metricMax" class="value">-</div></div>
-          <div class="metric"><div class="label">白名单</div><div id="metricWhitelist" class="value">-</div></div>
-          <div class="metric"><div class="label">默认代理</div><div id="metricProxy" class="value long-text">-</div></div>
-          <div class="metric"><div class="label">运行时长</div><div id="metricUptime" class="value">-</div></div>
-          <div class="metric"><div class="label">启动时间</div><div id="metricStart" class="value long-text">-</div></div>
+    <main class="main">
+      <header class="topbar">
+        <div class="page-head">
+          <h1 id="pageTitle">概览</h1>
+          <div id="pageSub" class="page-sub">服务器实时状态与常用操作</div>
         </div>
-
-        <div class="grid-2">
-          <div class="panel-box">
-            <div class="toolbar">
-              <button id="toggleWhitelistBtn" class="secondary" type="button">切换白名单</button>
-              <button id="reloadMotdBtn" class="secondary" type="button">重载 MOTD</button>
-            </div>
-            <div id="overviewMessage" class="status-line"></div>
-          </div>
-
-          <div class="panel-box">
-            <form id="maxPlayerForm">
-              <label for="maxPlayerInput">最大玩家数</label>
-              <div class="form-row">
-                <input id="maxPlayerInput" type="number" step="1" placeholder="-1">
-                <button class="primary" type="submit">保存</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </section>
-
-      <section id="servers" class="section tab-panel hidden">
-        <div class="grid-2">
-          <div class="panel-box">
-            <form id="serverForm" class="stack-form">
-              <label for="serverName">服务器名称</label>
-              <input id="serverName" type="text" placeholder="例如：生存服">
-              <div class="form-row">
-                <input id="serverLocalAddress" type="text" placeholder="0.0.0.0">
-                <input id="serverLocalPort" type="number" min="1" max="65535" step="1" placeholder="本地端口">
-              </div>
-              <div class="form-row">
-                <input id="serverRemoteAddress" type="text" placeholder="远程地址">
-                <input id="serverRemotePort" type="number" min="1" max="65535" step="1" placeholder="远程端口">
-              </div>
-              <div class="form-row">
-                <input id="serverMaxPlayer" type="number" step="1" placeholder="-1">
-                <input id="serverMotdPath" type="text" placeholder="MOTD 路径">
-              </div>
-              <button class="primary" type="submit">创建</button>
-            </form>
-          </div>
-          <div class="panel-box">
-            <table>
-              <thead>
-                <tr>
-                  <th>名称</th>
-                  <th>监听地址</th>
-                  <th>目标服务器</th>
-                  <th>在线</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody id="serversTable"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <section id="users" class="section tab-panel hidden">
-        <div class="panel-box">
-          <table>
-            <thead>
-              <tr>
-                <th>玩家</th>
-                <th>UUID</th>
-                <th>IP</th>
-                <th>流量</th>
-                <th>上线时间</th>
-                <th>代理</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody id="usersTable"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <section id="lists" class="section tab-panel hidden">
-        <div class="grid-2">
-          <div class="panel-box">
-            <div class="toolbar">
-              <strong>白名单</strong>
-              <button id="whitelistToggleBtn" class="secondary" type="button">切换</button>
-            </div>
-            <form id="whiteAddForm" class="form-row">
-              <input id="whiteAddInput" type="text" placeholder="玩家用户名">
-              <button class="primary" type="submit">添加</button>
-            </form>
-            <div id="whiteList" class="list-stack"></div>
-          </div>
-          <div class="panel-box">
-            <strong>黑名单</strong>
-            <form id="blackAddForm" class="form-row">
-              <input id="blackAddInput" type="text" placeholder="玩家用户名">
-              <button class="primary" type="submit">添加</button>
-            </form>
-            <div id="blackList" class="list-stack"></div>
-          </div>
-        </div>
-      </section>
-
-      <section id="proxies" class="section tab-panel hidden">
-        <div class="grid-2">
-          <div class="panel-box">
-            <div class="label">默认代理</div>
-            <div id="defaultProxyText" class="value long-text">-</div>
-            <form id="userProxyForm" class="stack-form">
-              <label for="proxyUsername">玩家专属代理</label>
-              <input id="proxyUsername" type="text" placeholder="玩家用户名">
-              <div class="form-row">
-                <input id="proxyAddress" type="text" placeholder="地址">
-                <input id="proxyPort" type="number" min="1" max="65535" step="1" placeholder="端口">
-              </div>
-              <button class="primary" type="submit">保存</button>
-            </form>
-          </div>
-          <div class="panel-box">
-            <table>
-              <thead>
-                <tr>
-                  <th>玩家</th>
-                  <th>目标</th>
-                  <th>操作</th>
-                </tr>
-              </thead>
-              <tbody id="proxyTable"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <section id="motd" class="section tab-panel hidden">
         <div class="toolbar">
-          <button id="motdPrettyBtn" class="secondary" type="button">格式化</button>
-          <button id="motdReloadBtn" class="secondary" type="button">重载</button>
-          <button id="motdSaveBtn" class="primary" type="button">保存</button>
+          <select id="activeProxySelect" class="server-select" aria-label="当前服务器"></select>
+          <button id="refreshBtn" class="secondary" type="button">刷新</button>
+          <button id="logoutBtn" class="ghost" type="button">退出</button>
         </div>
-        <textarea id="motdEditor" spellcheck="false"></textarea>
-        <div id="motdMessage" class="status-line"></div>
-      </section>
+      </header>
 
-      <section id="logs" class="section tab-panel hidden">
-        <div class="panel-box">
-          <table>
-            <thead>
-              <tr>
-                <th>时间</th>
-                <th>消息</th>
-              </tr>
-            </thead>
-            <tbody id="logsTable"></tbody>
-          </table>
-        </div>
-      </section>
+      <div class="content">
+        <section id="overview" class="tab-panel">
+          <div class="metric-grid">
+            <div class="metric"><div class="label">在线人数</div><div id="metricOnline" class="value">-</div></div>
+            <div class="metric"><div class="label">最大人数</div><div id="metricMax" class="value">-</div></div>
+            <div class="metric"><div class="label">白名单</div><div id="metricWhitelist" class="value">-</div></div>
+            <div class="metric"><div class="label">运行时长</div><div id="metricUptime" class="value">-</div></div>
+            <div class="metric"><div class="label">默认代理</div><div id="metricProxy" class="value sm long-text">-</div></div>
+            <div class="metric"><div class="label">启动时间</div><div id="metricStart" class="value sm long-text">-</div></div>
+          </div>
+          <div class="grid-2">
+            <div class="panel-box">
+              <div class="card-title">常用操作</div>
+              <div class="btn-row">
+                <button id="toggleWhitelistBtn" class="secondary" type="button">切换白名单</button>
+                <button id="reloadMotdBtn" class="secondary" type="button">重载 MOTD</button>
+              </div>
+              <div id="overviewMessage" class="status-line"></div>
+            </div>
+            <div class="panel-box">
+              <div class="card-title">最大玩家数</div>
+              <form id="maxPlayerForm">
+                <div class="form-row">
+                  <input id="maxPlayerInput" type="number" step="1" placeholder="-1">
+                  <button class="primary" type="submit">保存</button>
+                </div>
+                <div class="field-hint">填写 -1 表示不限制人数</div>
+              </form>
+            </div>
+          </div>
+        </section>
 
-      <section id="settings" class="section tab-panel hidden">
-        <div class="grid-2">
-          <div class="panel-box">
-            <div class="label">服务器</div>
-            <div id="serverInfo" class="long-text">-</div>
+        <section id="servers" class="tab-panel hidden">
+          <div class="grid-2">
+            <div class="panel-box">
+              <div class="card-title">创建服务器</div>
+              <form id="serverForm" class="stack-form">
+                <div class="field">
+                  <label for="serverName">服务器名称</label>
+                  <input id="serverName" type="text" placeholder="例如：生存服">
+                </div>
+                <div class="field">
+                  <label>本地监听</label>
+                  <div class="form-row">
+                    <input id="serverLocalAddress" type="text" placeholder="0.0.0.0">
+                    <input id="serverLocalPort" type="number" min="1" max="65535" step="1" placeholder="本地端口">
+                  </div>
+                </div>
+                <div class="field">
+                  <label>目标服务器</label>
+                  <div class="form-row">
+                    <input id="serverRemoteAddress" type="text" placeholder="远程地址">
+                    <input id="serverRemotePort" type="number" min="1" max="65535" step="1" placeholder="远程端口">
+                  </div>
+                </div>
+                <div class="field">
+                  <label>可选项</label>
+                  <div class="form-row">
+                    <input id="serverMaxPlayer" type="number" step="1" placeholder="最大人数 -1">
+                    <input id="serverMotdPath" type="text" placeholder="MOTD 路径">
+                  </div>
+                </div>
+                <button class="primary" type="submit">创建服务器</button>
+              </form>
+            </div>
+            <div class="panel-box">
+              <div class="card-title">服务器列表</div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>名称</th><th>监听地址</th><th>目标服务器</th><th>在线</th><th>操作</th></tr>
+                  </thead>
+                  <tbody id="serversTable"></tbody>
+                </table>
+              </div>
+            </div>
           </div>
+        </section>
+
+        <section id="users" class="tab-panel hidden">
           <div class="panel-box">
-            <div class="label">状态</div>
-            <div id="panelStatus" class="long-text">-</div>
+            <div class="card-title">在线玩家</div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>玩家</th><th>UUID</th><th>IP</th><th>流量</th><th>上线时间</th><th>代理</th><th>操作</th></tr>
+                </thead>
+                <tbody id="usersTable"></tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      </section>
-    </section>
+        </section>
+
+        <section id="lists" class="tab-panel hidden">
+          <div class="grid-2">
+            <div class="panel-box">
+              <div class="card-head">
+                <div class="card-title">白名单</div>
+                <button id="whitelistToggleBtn" class="secondary small" type="button">切换</button>
+              </div>
+              <form id="whiteAddForm" class="form-row">
+                <input id="whiteAddInput" type="text" placeholder="玩家用户名">
+                <button class="primary" type="submit">添加</button>
+              </form>
+              <div id="whiteList" class="list-stack"></div>
+            </div>
+            <div class="panel-box">
+              <div class="card-head">
+                <div class="card-title">黑名单</div>
+              </div>
+              <form id="blackAddForm" class="form-row">
+                <input id="blackAddInput" type="text" placeholder="玩家用户名">
+                <button class="primary" type="submit">添加</button>
+              </form>
+              <div id="blackList" class="list-stack"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="proxies" class="tab-panel hidden">
+          <div class="grid-2">
+            <div class="panel-box">
+              <div class="card-title">默认代理</div>
+              <div id="defaultProxyText" class="code-block long-text">-</div>
+              <form id="userProxyForm" class="stack-form gap-top">
+                <div class="card-title">玩家专属代理</div>
+                <div class="field">
+                  <label for="proxyUsername">玩家用户名</label>
+                  <input id="proxyUsername" type="text" placeholder="玩家用户名">
+                </div>
+                <div class="field">
+                  <label>代理目标</label>
+                  <div class="form-row">
+                    <input id="proxyAddress" type="text" placeholder="地址">
+                    <input id="proxyPort" type="number" min="1" max="65535" step="1" placeholder="端口">
+                  </div>
+                </div>
+                <button class="primary" type="submit">保存代理</button>
+              </form>
+            </div>
+            <div class="panel-box">
+              <div class="card-title">玩家代理列表</div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>玩家</th><th>目标</th><th>操作</th></tr>
+                  </thead>
+                  <tbody id="proxyTable"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="motd" class="tab-panel hidden">
+          <div class="panel-box">
+            <div class="card-head">
+              <div class="card-title">MOTD 编辑</div>
+              <div class="btn-row">
+                <button id="motdPrettyBtn" class="secondary small" type="button">格式化</button>
+                <button id="motdReloadBtn" class="secondary small" type="button">重载</button>
+                <button id="motdSaveBtn" class="primary small" type="button">保存</button>
+              </div>
+            </div>
+            <textarea id="motdEditor" spellcheck="false"></textarea>
+            <div id="motdMessage" class="status-line"></div>
+          </div>
+        </section>
+
+        <section id="logs" class="tab-panel hidden">
+          <div class="panel-box">
+            <div class="card-title">运行日志</div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th class="col-time">时间</th><th>消息</th></tr>
+                </thead>
+                <tbody id="logsTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section id="settings" class="tab-panel hidden">
+          <div class="grid-2">
+            <div class="panel-box">
+              <div class="card-title">服务器信息</div>
+              <div id="serverInfo" class="info-text long-text">-</div>
+            </div>
+            <div class="panel-box">
+              <div class="card-title">面板状态</div>
+              <div id="panelStatus" class="info-text long-text">-</div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
   </div>
 
   <script src="/panel.js"></script>
@@ -234,303 +263,291 @@ inline constexpr std::string_view kWebPanelHtml = R"html(<!doctype html>
 
 inline constexpr std::string_view kWebPanelCss = R"css(:root {
   color-scheme: dark;
-  --bg: #0f1410;
-  --panel: #18211b;
-  --panel-soft: #1f2a22;
-  --border: #314236;
-  --text: #e7f0e8;
-  --muted: #95a79a;
-  --accent: #49d17d;
-  --accent-soft: #203629;
-  --success: #4ad18a;
-  --warning: #d1a649;
-  --danger: #ef6b63;
+  --bg: #1b1715;
+  --surface: #221d19;
+  --surface-2: #2a241f;
+  --field: #191512;
+  --border: #39312b;
+  --border-strong: #4a3f37;
+  --text: #ece5dd;
+  --muted: #ab9f93;
+  --faint: #7d7166;
+  --accent: #cc7351;
+  --accent-bright: #dc8763;
+  --accent-quiet: #33251e;
+  --on-accent: #1b110c;
+  --ok: #94ad6f;
+  --warn: #d6a25a;
+  --danger: #dc6c5a;
+  --r: 10px;
+  --r-sm: 8px;
+  --shadow: 0 18px 40px rgba(0, 0, 0, 0.32);
 }
 
 * { box-sizing: border-box; }
+html, body { height: 100%; }
 
 body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 14px/1.45 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+  font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-button, input, select, textarea {
-  font: inherit;
-}
+button, input, select, textarea { font: inherit; color: inherit; }
+::placeholder { color: var(--faint); }
+.hidden { display: none !important; }
+.long-text { overflow-wrap: anywhere; word-break: break-word; }
+.mono { font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; }
 
 button {
   border: 1px solid var(--border);
-  background: var(--panel);
+  background: var(--surface-2);
   color: var(--text);
-  border-radius: 6px;
-  padding: 8px 12px;
+  border-radius: var(--r-sm);
+  padding: 9px 14px;
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  font-weight: 500;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
-
-button:hover {
-  border-color: var(--accent);
-  transform: translateY(-1px);
-}
-
-button.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #0f1410;
-}
-
-button.secondary {
-  background: var(--accent-soft);
-  border-color: #335442;
-}
-
-button.ghost {
-  background: transparent;
-}
-
-button.danger {
-  background: #291816;
-  border-color: #5a2f2b;
-  color: var(--danger);
-}
+button:hover { border-color: var(--border-strong); }
+button:active { transform: translateY(1px); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+button.primary:hover { background: var(--accent-bright); border-color: var(--accent-bright); }
+button.secondary:hover { border-color: var(--accent); color: var(--accent-bright); }
+button.ghost { background: transparent; border-color: transparent; color: var(--muted); }
+button.ghost:hover { color: var(--text); background: var(--surface-2); }
+button.danger { background: transparent; border-color: rgba(220, 108, 90, 0.4); color: var(--danger); }
+button.danger:hover { background: rgba(220, 108, 90, 0.12); border-color: var(--danger); }
+button.small { padding: 6px 11px; font-size: 13px; }
+button.block { width: 100%; }
 
 input, select, textarea {
   width: 100%;
+  background: var(--field);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 8px 10px;
-  background: var(--panel);
-  color: var(--text);
+  border-radius: var(--r-sm);
+  padding: 9px 11px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-
-.server-select {
-  width: min(260px, 100%);
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(204, 115, 81, 0.16);
 }
-
 textarea {
-  min-height: 280px;
+  min-height: 300px;
   resize: vertical;
   font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  line-height: 1.5;
 }
+label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.field { margin-bottom: 14px; }
+.field-hint { margin-top: 8px; font-size: 12px; color: var(--faint); }
 
-label, .label {
-  display: block;
-  font-size: 12px;
-  color: var(--muted);
-  margin-bottom: 6px;
-}
-
-.app {
-  max-width: 1500px;
-  margin: 0 auto;
-  padding: 16px;
-}
-
-.topbar,
-.section,
-.panel-box {
+.login-screen { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+.login-card {
+  width: min(380px, 100%);
+  background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--panel);
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.22);
+  border-top: 3px solid var(--accent);
+  border-radius: 14px;
+  padding: 32px 30px 26px;
+  box-shadow: var(--shadow);
 }
+.login-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 42px; height: 42px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  margin-bottom: 18px;
+}
+.login-brand { font-size: 19px; font-weight: 700; }
+.login-sub { color: var(--muted); margin: 5px 0 24px; font-size: 13px; }
+.login-card input { margin-bottom: 18px; }
 
+.app { display: grid; grid-template-columns: 236px 1fr; min-height: 100vh; }
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 18px 14px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+.side-brand { display: flex; align-items: center; gap: 11px; padding: 4px 8px 20px; }
+.brand-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+}
+.brand-name { display: flex; flex-direction: column; font-weight: 700; font-size: 15px; line-height: 1.2; }
+.brand-name small { font-weight: 500; font-size: 11px; color: var(--muted); margin-top: 3px; }
+.nav { display: flex; flex-direction: column; gap: 3px; }
+.nav .tab {
+  position: relative;
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-sm);
+  padding: 9px 13px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.nav .tab:hover { background: var(--surface-2); color: var(--text); }
+.nav .tab.active { background: var(--accent-quiet); color: var(--accent-bright); font-weight: 600; }
+.nav .tab.active::before {
+  content: "";
+  position: absolute;
+  left: -14px;
+  top: 9px; bottom: 9px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+}
+.side-foot { margin-top: auto; padding: 16px 6px 2px; }
+
+.main { min-width: 0; display: flex; flex-direction: column; }
 .topbar {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px 16px;
-}
-
-.brand {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--accent);
-}
-
-.subtle,
-.note,
-.status-line {
-  color: var(--muted);
-}
-
-.toolbar {
-  display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 16px;
+  padding: 18px 26px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 5;
 }
+.page-head h1 { margin: 0; font-size: 20px; font-weight: 700; }
+.page-sub { color: var(--muted); font-size: 13px; margin-top: 3px; }
+.toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.server-select { width: min(240px, 46vw); }
+.content { padding: 24px 26px; width: 100%; max-width: 1320px; }
 
 .status-pill {
   display: inline-flex;
   align-items: center;
-  border-radius: 6px;
-  padding: 4px 8px;
+  gap: 7px;
+  border-radius: var(--r-sm);
+  padding: 6px 11px;
   border: 1px solid var(--border);
-  background: var(--panel);
+  background: var(--surface-2);
   font-size: 12px;
+  color: var(--muted);
 }
+.status-pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
+.status-pill.status-ok { color: var(--ok); border-color: rgba(148, 173, 111, 0.32); background: rgba(148, 173, 111, 0.1); }
+.status-pill.status-ok::before { background: var(--ok); }
+.status-pill.status-warn { color: var(--warn); border-color: rgba(214, 162, 90, 0.3); background: rgba(214, 162, 90, 0.1); }
+.status-pill.status-warn::before { background: var(--warn); }
+.status-pill.status-bad { color: var(--danger); border-color: rgba(220, 108, 90, 0.32); background: rgba(220, 108, 90, 0.1); }
+.status-pill.status-bad::before { background: var(--danger); }
+.status-line { color: var(--muted); font-size: 13px; min-height: 18px; margin-top: 12px; }
+.status-ok { color: var(--ok); }
+.status-warn { color: var(--warn); }
+.status-bad { color: var(--danger); }
 
-.status-ok {
-  color: var(--success);
-  border-color: #335442;
-  background: #1f2e24;
-}
+.metric-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.metric { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px; }
+.metric .label { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+.metric .value { font-size: 25px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.metric .value.sm { font-size: 15px; font-weight: 600; }
 
-.status-warn {
-  color: var(--warning);
-  border-color: #5b4b2d;
-  background: #2c261a;
-}
+.grid-2 { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+#overview .grid-2 { margin-top: 16px; }
 
-.status-bad {
-  color: var(--danger);
-  border-color: #5a2f2b;
-  background: #291816;
-}
+.panel-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px; }
+.card-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 14px; }
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.card-head .card-title { margin-bottom: 0; }
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.gap-top { margin-top: 20px; }
 
-.hidden {
-  display: none !important;
-}
+.form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.stack-form > * + * { margin-top: 14px; }
+.stack-form .field { margin-bottom: 0; }
 
-.login-shell {
-  margin-top: 16px;
-  min-height: calc(100vh - 112px);
-  display: grid;
-  place-items: center;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  padding: 24px;
-}
-
-.login-card {
-  width: min(420px, 100%);
-  max-width: 420px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--panel);
-  padding: 28px;
-  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.28);
-}
-
-.tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 12px;
-}
-
-.tabs button.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #0f1410;
-  font-weight: 700;
-}
-
-.section {
-  margin-top: 12px;
-  padding: 16px;
-}
-
-.metric-grid,
-.grid-2 {
-  display: grid;
-  gap: 12px;
-}
-
-.metric-grid {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-}
-
-.grid-2 {
-  margin-top: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-}
-
-.metric {
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
-  border-radius: 6px;
-  background: var(--panel-soft);
-  padding: 12px;
-}
-
-.metric .value {
-  font-size: 22px;
-  font-weight: 700;
-  overflow-wrap: anywhere;
-}
-
-.panel-box {
-  padding: 12px;
-}
-
-.form-row,
-.stack-form {
-  margin-top: 10px;
-}
-
-.form-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 8px;
-}
-
-.stack-form > * + * {
-  margin-top: 8px;
-}
-
-.list-stack {
-  margin-top: 10px;
-  display: grid;
-  gap: 8px;
-}
-
+.list-stack { display: grid; gap: 8px; margin-top: 14px; }
 .list-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
+  background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 8px 10px;
-  background: var(--panel-soft);
+  border-radius: var(--r-sm);
+  padding: 9px 12px;
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
+.code-block {
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  background: var(--field);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 11px 13px;
+  color: var(--text);
+  font-size: 13px;
 }
+.info-text { color: var(--muted); line-height: 1.8; font-size: 13px; }
 
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
 thead th {
   text-align: left;
-  padding: 8px 6px;
+  padding: 10px;
   border-bottom: 1px solid var(--border);
   color: var(--muted);
   font-size: 12px;
-}
-
-tbody td {
-  padding: 8px 6px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: top;
-}
-
-tbody tr:hover {
-  background: #223129;
-}
-
-.long-text {
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.action-cell {
+  font-weight: 600;
   white-space: nowrap;
+}
+tbody td { padding: 11px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: var(--surface-2); }
+.note { color: var(--faint); text-align: center; padding: 22px 0 !important; }
+.action-cell { white-space: nowrap; }
+.action-cell button { padding: 6px 10px; font-size: 13px; }
+.action-cell button + button { margin-left: 8px; }
+.col-time { width: 180px; }
+
+@media (max-width: 860px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar {
+    position: static;
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    overflow-x: auto;
+    padding: 12px 14px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .side-brand { padding: 0; flex-shrink: 0; }
+  .brand-name { display: none; }
+  .nav { flex-direction: row; gap: 4px; }
+  .nav .tab { white-space: nowrap; padding: 8px 12px; }
+  .nav .tab.active::before { left: 8px; right: 8px; top: auto; bottom: -1px; width: auto; height: 3px; border-radius: 3px 3px 0 0; }
+  .side-foot { margin: 0 0 0 auto; padding: 0; flex-shrink: 0; }
+  .topbar { padding: 14px 16px; }
+  .content { padding: 16px; }
 }
 )css";
 
@@ -538,7 +555,7 @@ inline auto GetWebPanelJs() -> const std::string&
 {
 	static const std::string js = []() {
 		std::string value;
-		value.reserve(25737);
+		value.reserve(28650);
 		value += R"paneljs((() => {
   const state = {
     token: localStorage.getItem("msp_panel_token") || "",
@@ -764,6 +781,17 @@ inline auto GetWebPanelJs() -> const std::string&
     return payload;
   }
 
+  const tabMeta = {
+    overview: ["概览", "服务器实时状态与常用操作"],
+    servers: ["服务器", "创建并管理多个加速实例"],
+    users: ["在线玩家", "查看并管理当前连接的玩家"],
+    lists: ["名单", "白名单与黑名单管理"],
+    proxies: ["玩家代理", "为指定玩家设置专属上游"],
+    motd: ["MOTD", "编辑服务器列表展示信息"],
+    logs: ["日志", "最近的运行日志"],
+    settings: ["设置", "当前服务器与面板状态"]
+  };
+
   function activateTab(name) {
     state.activeTab = name;
     document.querySelectorAll(".tab").forEach((btn) => {
@@ -772,6 +800,13 @@ inline auto GetWebPanelJs() -> const std::string&
     document.querySelectorAll(".tab-panel").forEach((panel) => {
       panel.classList.toggle("hidden", panel.id !== name);
     });
+    const meta = tabMeta[name];
+    if (meta) {
+      const titleEl = document.querySelector("#pageTitle");
+      const subEl = document.querySelector("#pageSub");
+      if (titleEl) titleEl.textContent = meta[0];
+      if (subEl) subEl.textContent = meta[1];
+    }
   }
 
   function renderOverview(status) {
